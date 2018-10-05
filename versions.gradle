@@ -1,0 +1,46 @@
+ext.deps = [:]
+
+def versions = [:]
+versions.kotlin = '1.2.60'
+versions.support = '28.0.0-rc01'
+versions.test_runner = '1.0.2'
+versions.constraint_layout = '1.1.2'
+versions.gradle_plugin = '3.1.4'
+versions.exoplayer = '2.9.0'
+
+
+def deps = [:]
+deps.android_gradle_plugin = "com.android.tools.build:gradle:$versions.gradle_plugin"
+deps.exoplayer = "com.google.android.exoplayer:exoplayer-core:$versions.exoplayer"
+
+def support = [:]
+support.app_compat = "com.android.support:appcompat-v7:$versions.support"
+support.support = "com.android.support:support-v4:$versions.support"
+support.recycler = "com.android.support:recyclerview-v7:$versions.support"
+support.design = "com.android.support:design:$versions.support"
+support.constraint = "com.android.support.constraint:constraint-layout:$versions.constraint_layout"
+deps.support = support
+
+
+def kotlin = [:]
+kotlin.stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$versions.kotlin"
+kotlin.plugin = "org.jetbrains.kotlin:kotlin-gradle-plugin:$versions.kotlin"
+kotlin.extension = "org.jetbrains.kotlin:kotlin-android-extensions:$versions.kotlin"
+deps.kotlin = kotlin
+
+def build_versions = [:]
+build_versions.min_sdk = 21
+build_versions.target_sdk = 28
+
+ext.build_versions = build_versions
+ext.deps = deps
+
+static def addRepos(RepositoryHandler handler) {
+    handler.google()
+    handler.jcenter()
+    handler.maven {
+        url "https://jitpack.io"
+    }
+}
+
+ext.addRepos = this.&addRepos

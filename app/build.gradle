@@ -1,33 +1,76 @@
 apply plugin: 'com.android.application'
-
 apply plugin: 'kotlin-android'
-
 apply plugin: 'kotlin-android-extensions'
 
+apply from: "$project.rootDir/secretconfig.gradle"
+
 android {
-    compileSdkVersion 28
+    compileSdkVersion build_versions.target_sdk
     defaultConfig {
         applicationId "com.lounah.musicplayer"
-        minSdkVersion 19
-        targetSdkVersion 28
+        minSdkVersion build_versions.min_sdk
+        targetSdkVersion build_versions.target_sdk
         versionCode 1
-        versionName "1.0"
+        versionName "0.1.0 от " + getDate()
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
+
+    lintOptions {
+        checkReleaseBuilds false
+    }
+
+    signingConfigs {
+        config {
+            keyAlias signConfigs.keyAlias
+            keyPassword signConfigs.keyPassword
+            storeFile file(signConfigs.storeFile)
+            storePassword signConfigs.storePassword
+        }
+    }
+
     buildTypes {
         release {
-            minifyEnabled false
+            shrinkResources true
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.config
         }
+        debug {
+            multiDexEnabled true
+            minifyEnabled false
+            testCoverageEnabled true
+        }
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+    }
+    androidExtensions {
+        experimental = true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation"org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
-    implementation 'com.android.support:appcompat-v7:28.0.0'
-    implementation 'com.android.support.constraint:constraint-layout:1.1.3'
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.android.support.test:runner:1.0.2'
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    // Base
+    implementation deps.kotlin.stdlib
+    implementation deps.support.app_compat
+    implementation deps.support.support
+    implementation deps.support.design
+    implementation deps.support.constraint
+    implementation deps.support.recycler
+
+    // ExoPlayer
+    implementation deps.exoplayer
+}
+
+static def getDate() {
+    return new Date().format('yyyy/MM/dd')
 }
