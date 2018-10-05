@@ -1,0 +1,11 @@
+<resources>
+
+    <!-- App -->
+    <string name="app_name">MusicPlayer</string>
+
+    <!-- Browse Media Fragment -->
+    <string name="where_to_search">Откуда играть музыку?</string>
+    <string name="choose_audio_folder">Выберете папку с аудиозаписями</string>
+    <string name="choose_folder">Выбрать папку</string>
+
+</resources>
