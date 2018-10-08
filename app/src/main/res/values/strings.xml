@@ -7,5 +7,8 @@
     <string name="where_to_search">Откуда играть музыку?</string>
     <string name="choose_audio_folder">Выберете папку с аудиозаписями</string>
     <string name="choose_folder">Выбрать папку</string>
+    <string name="select_folder">Выбрать эту папку</string>
+    <string name="select_music_folder">Выберете папку с музыкой</string>
+    <string name="audio_files">Аудиозаписи</string>
 
 </resources>
