@@ -49,7 +49,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     private var audioBecomingNoisy = AudioBecomingNoisyReceiver()
     private var audioBecomingNoisyIntentFilter: IntentFilter? = null
 
-    private val audioPlayer = AudioPlayer.getInstance(this)
+    private lateinit var audioPlayer: AudioPlayer
     private val playerEventListener = PlayerEventListener()
 
     private val messenger = Messenger(IncomingHandler())
@@ -60,6 +60,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     override fun onCreate() {
         super.onCreate()
 
+        audioPlayer = AudioPlayer.getInstance(applicationContext)
         audioPlayer.playbackEngine.addListener(playerEventListener)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
@@ -128,6 +129,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         }
     }
 
+    // TODO: REQUEST AUDIO FOCUS
     private inner class PlayerEventListener : Player.EventListener {
         override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
 
