@@ -16,7 +16,6 @@ abstract class BaseFragment : Fragment() {
         initUI()
     }
 
-    abstract fun setUpToolbarTitle(resId : Int)
     abstract fun initUI()
     abstract val TAG : String
     abstract val layoutRes : Int
