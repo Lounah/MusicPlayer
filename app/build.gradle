@@ -11,7 +11,7 @@ android {
         minSdkVersion build_versions.min_sdk
         targetSdkVersion build_versions.target_sdk
         versionCode 1
-        versionName "0.1.0 от " + getDate()
+        versionName "0.1.1 от " + getDate()
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
 
@@ -68,7 +68,9 @@ dependencies {
     implementation deps.support.recycler
 
     // ExoPlayer
-    implementation deps.exoplayer
+    implementation deps.exoplayer_core
+    implementation deps.exoplayer_ui
+    implementation deps.exoplayer_ext
 }
 
 static def getDate() {
