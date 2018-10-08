@@ -993,10 +993,6 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
         savedState.trackTitle = currentTrack.title!!
         savedState.playbackState = playbackState
 
-        Log.i("ON SAVE", "$timeElapsedSinceTrackStartedToBePlayed")
-
-      //  onControlClickListener?.onPauseClicked()
-
         return savedState
     }
 

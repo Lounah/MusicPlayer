@@ -17,6 +17,7 @@ import kotlinx.android.synthetic.main.activity_audio_tracks.*
 import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.*
+import android.util.Log
 
 class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
 
@@ -76,11 +77,11 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         initUI()
         presenter.loadTracksFromFolder(absolutePath)
 
-        if (player.track != null) {
-            bottom_audio_view_activity_tracks.visibility = View.VISIBLE
-            bottom_audio_view_activity_tracks.currentTrack = player.track!!
-            bottom_audio_view_activity_tracks.playbackState = 2
-        }
+//        if (player.track != null) {
+//            bottom_audio_view_activity_tracks.visibility = View.VISIBLE
+//            bottom_audio_view_activity_tracks.currentTrack = player.track!!
+//            bottom_audio_view_activity_tracks.playbackState = 2
+//        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem?): Boolean {
@@ -193,10 +194,8 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
                     bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getNextItem(currentlyPlayingTrackIndex)
                     currentlyPlayingTrackIndex = audioTracksAdapter.getNextItemPosition(currentlyPlayingTrackIndex)
                 }
-
-                AudioPlayerService.STATE_PREV_TRACK -> {
-                    bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getPreviousItem(currentlyPlayingTrackIndex)
-                    currentlyPlayingTrackIndex = audioTracksAdapter.getPreviousItemPosition(currentlyPlayingTrackIndex)
+                AudioPlayerService.STATE_TRACK_INITIAL -> {
+                    bottom_audio_view_activity_tracks.currentTrack = player.track!!
                 }
             }
         }

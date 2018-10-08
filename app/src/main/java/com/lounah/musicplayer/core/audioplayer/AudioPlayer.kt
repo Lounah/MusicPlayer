@@ -72,7 +72,6 @@ class AudioPlayer private constructor(context: Context) {
     fun stop() {
         playbackEngine.playWhenReady = false
         playbackEngine.stop()
-        playbackEngine.release()
     }
 
     fun playAtIndexInQueue(index: Int) {

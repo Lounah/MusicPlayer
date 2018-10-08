@@ -15,7 +15,6 @@ import android.graphics.BitmapFactory
 import android.os.*
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
-import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.lounah.musicplayer.R
 import com.lounah.musicplayer.presentation.audiotracks.AudioTracksActivity
@@ -40,6 +39,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         const val STATE_TIMELINE_CHANGED = 8
         const val STATE_NEXT_TRACK = 9
         const val STATE_PREV_TRACK = 10
+        const val STATE_TRACK_INITIAL = 11
     }
 
     private lateinit var playerNotificationManager: PlayerNotificationManager
@@ -91,9 +91,11 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
         mediaSessionConnector = MediaSessionConnector(mediaSession)
         mediaSessionConnector.setPlayer(audioPlayer.playbackEngine, null)
+
+        registerReceiver(audioBecomingNoisy, audioBecomingNoisyIntentFilter)
     }
 
-    override fun onBind(intent: Intent?) = messenger.binder
+    override fun onBind(intent: Intent?) = messenger.binder!!
 
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
@@ -110,6 +112,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     override fun onDestroy() {
         super.onDestroy()
+        unregisterReceiver(audioBecomingNoisy)
         mediaSession.release()
         audioPlayer.stop()
         mediaSessionConnector.setPlayer(null, null)
@@ -127,17 +130,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     private inner class PlayerEventListener : Player.EventListener {
         override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
-            val requestAudioFocus = audioManager.requestAudioFocus(this@AudioPlayerService,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN)
 
-            if (playbackState == Player.STATE_READY && playWhenReady) {
-                this@AudioPlayerService.registerReceiver(audioBecomingNoisy, audioBecomingNoisyIntentFilter)
-                audioPlayer.playbackEngine.playWhenReady = requestAudioFocus == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            } else if (playbackState == Player.STATE_READY) {
-                this@AudioPlayerService.unregisterReceiver(audioBecomingNoisy)
-                audioManager.abandonAudioFocus(this@AudioPlayerService)
-            }
             if (playbackState == Player.STATE_READY && !playWhenReady) {
                 serviceClients.forEach {
                     sendMessage(it, STATE_PAUSED)
@@ -158,6 +151,11 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
                     sendMessage(it, STATE_PREV_TRACK)
                 }
             }
+            if (playbackState == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
+                serviceClients.forEach {
+                    sendMessage(it, STATE_TRACK_INITIAL)
+                }
+            }
         }
     }
 
@@ -171,14 +169,11 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
                                          callback: PlayerNotificationManager.BitmapCallback)
                 = BitmapFactory.decodeResource(resources, R.drawable.albumcoverxx)
 
-
         override fun createCurrentContentIntent(player: Player): PendingIntent? {
-//            val window = audioPlayer.currentWindowIndex
-//            return createPendingIntent(window)
             val startAudioTracksActivityIntent = Intent(baseContext, AudioTracksActivity::class.java).apply {
                 putExtra(AudioTracksActivity.AUDIO_FOLDER_ABSOLUTE_PATH, playbackFolderAbsolutePath)
             }
-            return PendingIntent.getActivity(baseContext, 0 , startAudioTracksActivityIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+            return PendingIntent.getActivity(baseContext, 0, startAudioTracksActivityIntent, PendingIntent.FLAG_UPDATE_CURRENT)
         }
     }
 
