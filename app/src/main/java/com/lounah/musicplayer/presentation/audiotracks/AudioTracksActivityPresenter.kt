@@ -10,6 +10,8 @@ class AudioTracksActivityPresenter(private var view: AudioTracksActivityView?) {
 
     private lateinit var requestTracksTask: Future<List<AudioTrack>>
 
+    private var cachedTracks: List<AudioTrack>? = null
+
     fun detachView() {
         view = null
         if (::requestTracksTask.isInitialized)
@@ -17,13 +19,18 @@ class AudioTracksActivityPresenter(private var view: AudioTracksActivityView?) {
     }
 
     fun loadTracksFromFolder(folderPath: String) {
-        requestTracksTask = ExecutorSupplier.instance.backgroundThreadExecutor
-                .submit(Callable<List<AudioTrack>> { requestTracksFromFolder(folderPath) })
-        try {
-            val result = requestTracksTask.get()
-            view?.renderTracks(result)
-        } catch (exception: Exception) {
+        if (cachedTracks == null) {
+            requestTracksTask = ExecutorSupplier.instance.backgroundThreadExecutor
+                    .submit(Callable<List<AudioTrack>> { requestTracksFromFolder(folderPath) })
+            try {
+                val result = requestTracksTask.get()
+                cachedTracks = result
+                view?.renderTracks(result)
+            } catch (exception: Exception) {
 
+            }
+        } else {
+            view?.renderTracks(cachedTracks!!)
         }
     }
 
