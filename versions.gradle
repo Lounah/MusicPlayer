@@ -11,7 +11,9 @@ versions.exoplayer = '2.9.0'
 
 def deps = [:]
 deps.android_gradle_plugin = "com.android.tools.build:gradle:$versions.gradle_plugin"
-deps.exoplayer = "com.google.android.exoplayer:exoplayer-core:$versions.exoplayer"
+deps.exoplayer_core = "com.google.android.exoplayer:exoplayer-core:$versions.exoplayer"
+deps.exoplayer_ui = "com.google.android.exoplayer:exoplayer-ui:$versions.exoplayer"
+deps.exoplayer_ext = "com.google.android.exoplayer:extension-mediasession:$versions.exoplayer"
 
 def support = [:]
 support.app_compat = "com.android.support:appcompat-v7:$versions.support"
