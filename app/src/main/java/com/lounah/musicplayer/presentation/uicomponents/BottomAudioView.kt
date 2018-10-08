@@ -4,6 +4,7 @@ import android.animation.Animator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
+import android.os.Parcelable
 import android.support.v4.content.ContextCompat
 import android.text.TextPaint
 import android.text.TextUtils
@@ -11,11 +12,15 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.SoundEffectConstants
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import com.lounah.musicplayer.R
 import com.lounah.musicplayer.presentation.model.AudioTrack
 import com.lounah.musicplayer.util.ViewUtilities
 import kotlin.math.abs
+import android.os.Parcel
+import android.util.Log
+
 
 class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?, defStyleRes: Int = 0)
     : View(context, attributeSet, defStyleRes) {
@@ -53,6 +58,7 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
 
     var onControlClickListener: OnControlButtonsClickListener? = null
 
+
     private val PLAYBACK_STATE_PAUSED = 1
     private val PLAYBACK_STATE_PLAYING = 2
 
@@ -74,6 +80,8 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
         fun onAddButtonClicked()
 
         fun onPlaybackTimeChanged(newPlaybackTimeSec: Int)
+
+        fun onVisibilityChanged(newVisibilityState: Int)
     }
 
     private val COLLAPSED_BOTTOM_VIEW_HEIGHT = ViewUtilities.dpToPx(64, context)
@@ -104,6 +112,7 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
     private val expandedRepeatDrawable = ContextCompat.getDrawable(context, R.drawable.ic_repeat_24)
     private val expandedDotsDrawable = ContextCompat.getDrawable(context, R.drawable.ic_ic_more_24dp)
     private val expandedAddDrawable = ContextCompat.getDrawable(context, R.drawable.ic_add_outline_24)
+    private var albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
     //  ?.apply { colorFilter = PorterDuffColorFilter(0x73BEF2,PorterDuff.Mode.MULTIPLY) }
 
     private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -115,7 +124,9 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
     private val trackBaseTimelinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val trackFilledTimelinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val trackPlaybackTimeTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+    private val trackPlaybackTimeCollapsedTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
     private val onClickPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val albumRectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private lateinit var albumCoverRect: Rect
     private lateinit var bottomAudioViewRect: Rect
@@ -194,12 +205,18 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
 
     private var rectsWereMeasured = false
 
-    private val STATE_COLLAPSED = 0
-    private val STATE_EXPANDING = 1
-    private val STATE_COLLAPSING = 2
-    private val STATE_EXPANDED = 3
+    companion object {
+        val STATE_COLLAPSED = 0
+        val STATE_EXPANDING = 1
+        val STATE_COLLAPSING = 2
+        val STATE_EXPANDED = 3
+    }
 
-    private var currentState = STATE_COLLAPSED
+    var currentState = STATE_COLLAPSED
+        set(newValue) {
+            field = newValue
+            onControlClickListener?.onVisibilityChanged(newValue)
+        }
     private var isCollapsed = true
 
     private var collapsedNextButtonWasPressed = false
@@ -212,10 +229,13 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
     private var expandedShuffleButtonWasPressed = false
     private var expandedDotsButtonWasPressed = false
     private var expandedAddButtonWasPressed = false
+    private var albumCoverWasPressed = false
 
     private var timeLineAnimationLastAnimatedValue = 0f
 
     init {
+
+        setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
         expandedAddDrawable?.let {
             it.colorFilter = PorterDuffColorFilter(ContextCompat.getColor(context, R.color.blue), PorterDuff.Mode.SRC_IN)
@@ -245,7 +265,6 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
             it.colorFilter = PorterDuffColorFilter(ContextCompat.getColor(context, R.color.blue), PorterDuff.Mode.SRC_IN)
         }
 
-
         collapsedPlayIconDrawable
         controlButtonPaint.color = ContextCompat.getColor(context, R.color.blue)
         backgroundPaint.color = DEFAULT_BACKGROUND_COLOR
@@ -260,10 +279,13 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
         trackFilledTimelinePaint.color = FILLED_TIMELINE_COLOR
         trackFilledTimelinePaint.strokeWidth = ViewUtilities.dpToPx(3, context).toFloat()
         trackPlaybackTimeTextPaint.textSize = DEFAULT_TRACK_TIMELINE_TEXT_SIZE.toFloat()
+        trackPlaybackTimeCollapsedTextPaint.textSize = DEFAULT_TRACK_TIMELINE_TEXT_SIZE.toFloat()
         trackPlaybackTimeTextPaint.color = FILLED_TIMELINE_COLOR
+        trackPlaybackTimeCollapsedTextPaint.color = FILLED_TIMELINE_COLOR
         onClickPaint.color = DEFAULT_ON_CLICK_SHAPE_COLOR
 
         expandAnimator.duration = EXPAND_ANIMATION_DURATION_MS
+        expandAnimator.interpolator = AccelerateDecelerateInterpolator()
         expandAnimator.addUpdateListener(ExpandValueAnimatorListener())
         expandAnimator.addListener(ExpandAnimatorListener())
 
@@ -289,20 +311,21 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
                                 isMotionEventInRect(collapsedPauseIconRect, event) -> {
                                     collapsedPauseButtonWasPressed = true
                                     playSoundEffect(SoundEffectConstants.CLICK)
-                                    onControlClickListener?.let { it.onPauseClicked() }
-                                    when (playbackState) {
-                                        PLAYBACK_STATE_PAUSED -> {
-                                            playbackState = PLAYBACK_STATE_PLAYING
-                                            if (timelineAnimator.isPaused) {
-                                                timelineAnimator.resume()
-                                            } else timelineAnimator.start()
-                                        }
-                                        PLAYBACK_STATE_PLAYING -> {
-                                            playbackState = PLAYBACK_STATE_PAUSED
-                                            timelineAnimator.pause()
-                                        }
-                                    }
-                                    //  onPlaybackStateChanged()
+//                                    when (playbackState) {
+//                                        PLAYBACK_STATE_PAUSED -> {
+//                                            onControlClickListener?.let { it.onPlayClicked() }
+//                                            playbackState = PLAYBACK_STATE_PLAYING
+//                                            if (timelineAnimator.isPaused) {
+//                                                timelineAnimator.resume()
+//                                            } else timelineAnimator.start()
+//                                        }
+//                                        PLAYBACK_STATE_PLAYING -> {
+//                                            onControlClickListener?.let { it.onPauseClicked() }
+//                                            playbackState = PLAYBACK_STATE_PAUSED
+//                                            timelineAnimator.pause()
+//                                        }
+//                                    }
+                                    handleNewPlaybackState()
                                     controlButtonPaint.alpha = 100
                                     invalidate()
                                     return@setOnTouchListener true
@@ -322,28 +345,35 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
                             isMotionEventInRect(expandedPreviousIconRect, event) -> {
                                 expandedPreviousButtonWasPressed = true
                                 playSoundEffect(SoundEffectConstants.CLICK)
-                                onControlClickListener?.let { it.onPreviousButtonClicked() }
+                                onControlClickListener?.onPreviousButtonClicked()
                                 timelineAnimator.cancel()
+                                invalidate()
+                                return@setOnTouchListener true
+                            }
+                            isMotionEventInRect(albumCoverRect, event) -> {
+                                albumCoverWasPressed = true
+                                playSoundEffect(SoundEffectConstants.CLICK)
                                 invalidate()
                                 return@setOnTouchListener true
                             }
                             isMotionEventInRect(expandedPauseIconRect, event) -> {
                                 expandedPauseButtonWasPressed = true
                                 playSoundEffect(SoundEffectConstants.CLICK)
-                                onControlClickListener?.let { it.onPauseClicked() }
-                                when (playbackState) {
-                                    PLAYBACK_STATE_PAUSED -> {
-                                        playbackState = PLAYBACK_STATE_PLAYING
-                                        if (timelineAnimator.isPaused) {
-                                            timelineAnimator.resume()
-                                        } else timelineAnimator.start()
-                                    }
-                                    PLAYBACK_STATE_PLAYING -> {
-                                        playbackState = PLAYBACK_STATE_PAUSED
-                                        timelineAnimator.pause()
-                                    }
-                                }
-                                //  onPlaybackStateChanged()
+//                                when (playbackState) {
+//                                    PLAYBACK_STATE_PAUSED -> {
+//                                        onControlClickListener?.let { it.onPlayClicked() }
+//                                        playbackState = PLAYBACK_STATE_PLAYING
+//                                        if (timelineAnimator.isPaused) {
+//                                            timelineAnimator.resume()
+//                                        } else timelineAnimator.start()
+//                                    }
+//                                    PLAYBACK_STATE_PLAYING -> {
+//                                        onControlClickListener?.let { it.onPauseClicked() }
+//                                        playbackState = PLAYBACK_STATE_PAUSED
+//                                        timelineAnimator.pause()
+//                                    }
+//                                }
+                                handleNewPlaybackState()
                                 controlButtonPaint.alpha = 100
                                 invalidate()
                                 return@setOnTouchListener true
@@ -351,20 +381,21 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
                             isMotionEventInRect(expandedPlayIconRect, event) -> {
                                 expandedPlayButtonWasPressed = true
                                 playSoundEffect(SoundEffectConstants.CLICK)
-                                onControlClickListener?.let { it.onPlayClicked() }
-                                when (playbackState) {
-                                    PLAYBACK_STATE_PAUSED -> {
-                                        playbackState = PLAYBACK_STATE_PLAYING
-                                        if (timelineAnimator.isPaused) {
-                                            timelineAnimator.resume()
-                                        } else timelineAnimator.start()
-                                    }
-                                    PLAYBACK_STATE_PLAYING -> {
-                                        playbackState = PLAYBACK_STATE_PAUSED
-                                        timelineAnimator.pause()
-                                    }
-                                }
-                                // onPlaybackStateChanged()
+//                                when (playbackState) {
+//                                    PLAYBACK_STATE_PAUSED -> {
+//                                        onControlClickListener?.let { it.onPlayClicked() }
+//                                        playbackState = PLAYBACK_STATE_PLAYING
+//                                        if (timelineAnimator.isPaused) {
+//                                            timelineAnimator.resume()
+//                                        } else timelineAnimator.start()
+//                                    }
+//                                    PLAYBACK_STATE_PLAYING -> {
+//                                        onControlClickListener?.let { it.onPauseClicked() }
+//                                        playbackState = PLAYBACK_STATE_PAUSED
+//                                        timelineAnimator.pause()
+//                                    }
+//                                }
+                                handleNewPlaybackState()
                                 controlButtonPaint.alpha = 100
                                 invalidate()
                                 return@setOnTouchListener true
@@ -418,6 +449,11 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
                 MotionEvent.ACTION_UP -> {
                     if (collapsedNextButtonWasPressed) {
                         collapsedNextButtonWasPressed = false
+                        invalidate()
+                    }
+
+                    if (albumCoverWasPressed) {
+                        albumCoverWasPressed = false
                         invalidate()
                     }
 
@@ -485,10 +521,16 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
 
 
         //   canvas.drawLine(0f, currentViewHeight, availableWidth.toFloat(), currentViewHeight, elevationPaint)
-        canvas.drawRoundRect(RectF(albumCoverRect), 12f, 12f, Paint().apply { color = Color.BLACK })
 
-        if (trackTitleMeasuredWidth > availableWidth - ViewUtilities.dpToPx(96, context) - DEFAULT_MARGIN * 8) {
-            val collapsedTrackTitle = TextUtils.ellipsize(currentTrack.title, expandedTrackTitlePaint, availableWidth.toFloat() - ViewUtilities.dpToPx(96, context) - DEFAULT_MARGIN * 8, TextUtils.TruncateAt.END)
+        if (albumCoverWasPressed) {
+            canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumRectPaint.apply {
+                alpha = 175
+            })
+        } else {
+            canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, null)
+        }
+        if (trackTitleMeasuredWidth > availableWidth - ViewUtilities.dpToPx(96, context) - DEFAULT_MARGIN * 8 - trackDurationTextViewMeasuredWidth) {
+            val collapsedTrackTitle = TextUtils.ellipsize(currentTrack.title, expandedTrackTitlePaint, availableWidth.toFloat() - ViewUtilities.dpToPx(96, context) - DEFAULT_MARGIN * 8 - trackDurationTextViewMeasuredWidth, TextUtils.TruncateAt.END)
             canvas.drawText(collapsedTrackTitle, 0, collapsedTrackTitle.length, DEFAULT_MARGIN * 3f + COLLAPSED_ALBUM_COVER_SIZE, trackTitleTopY, trackTitlePaint)
         } else {
             canvas.drawText(currentTrack.title, DEFAULT_MARGIN * 3f + COLLAPSED_ALBUM_COVER_SIZE, trackTitleTopY, trackTitlePaint)
@@ -510,6 +552,11 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
                 it.draw(canvas)
             }
         }
+
+        canvas.drawText(parseSecondsToText(timeElapsedSinceTrackStartedToBePlayed),
+                availableWidth - DEFAULT_MARGIN * 4 - ViewUtilities.dpToPx(28, context) * 3 - trackDurationTextViewMeasuredWidth,
+                availableHeight.toFloat() - ViewUtilities.dpToPx(24, context),
+                trackPlaybackTimeCollapsedTextPaint)
 
         if (collapsedNextButtonWasPressed) {
             drawOnClickShape(canvas, collapsedNextIconRect)
@@ -538,7 +585,7 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
             }
 
             if (expandedDotsButtonWasPressed) {
-                drawOnClickShape(canvas, expandedShuffleIconRect)
+                drawOnClickShape(canvas, expandedDotsIconRect)
             }
 
             if (expandedAddButtonWasPressed) {
@@ -744,9 +791,9 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
                 width / 2 - ViewUtilities.dpToPx(41, context) - ViewUtilities.dpToPx(16, context),
                 availableHeight - ViewUtilities.dpToPx(131, context) + ViewUtilities.dpToPx(41, context))
 
-        expandedDotsIconRect = Rect(availableWidth - DEFAULT_MARGIN * 2,
+        expandedDotsIconRect = Rect(availableWidth - DEFAULT_MARGIN * 2 - ViewUtilities.dpToPx(16, context),
                 EXPANDED_ALBUM_COVER_SIZE + EXPANDED_ALBUM_COVER_MARGIN + DEFAULT_MARGIN,
-                availableWidth - DEFAULT_MARGIN * 2 - ViewUtilities.dpToPx(16, context),
+                availableWidth - DEFAULT_MARGIN * 2,
                 EXPANDED_ALBUM_COVER_SIZE + EXPANDED_ALBUM_COVER_MARGIN + ViewUtilities.dpToPx(32, context) + DEFAULT_MARGIN)
 
         expandedAddIconRect = Rect(DEFAULT_MARGIN * 2,
@@ -789,7 +836,7 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
         override fun onAnimationUpdate(animation: ValueAnimator) {
             val animatedValue = animation.animatedValue as Float
 
-            currentViewHeight = height - (height / 100) * animatedValue
+            currentViewHeight = height - (height + DEFAULT_MARGIN) / 100 * animatedValue
 
             val offsetX = (albumCoverCenterXDx) / 100 * animatedValue
             val previousAlbumCoverCenterX = currentAlbumCoverCenterX
@@ -806,6 +853,8 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
             albumCoverSize = calculatedAlbumSizeDelta.toInt()
 
             trackTitlePaint.alpha = 0
+            trackPlaybackTimeCollapsedTextPaint.alpha = 0
+
         }
     }
 
@@ -830,6 +879,8 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
             albumCoverSize = calculatedAlbumSizeDelta.toInt()
 
             trackTitlePaint.alpha = (255 / 100) * animatedValue.toInt()
+
+            trackPlaybackTimeCollapsedTextPaint.alpha = (255 / 100) * animatedValue.toInt()
         }
     }
 
@@ -888,6 +939,31 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
         return (currentX - DEFAULT_MARGIN * 2f - ViewUtilities.dpToPx(12, context)) / (abs(-DEFAULT_MARGIN * 2 - ViewUtilities.dpToPx(12, context) + width - DEFAULT_MARGIN * 2 - ViewUtilities.dpToPx(12, context)) / currentTrack.duration)
     }
 
+    fun handleNewPlaybackState() {
+        when (playbackState) {
+            PLAYBACK_STATE_PAUSED -> {
+                onControlClickListener?.let { it.onPlayClicked() }
+                resumeNow()
+            }
+            PLAYBACK_STATE_PLAYING -> {
+                onControlClickListener?.let { it.onPauseClicked() }
+                pauseNow()
+            }
+        }
+    }
+
+    fun pauseNow() {
+        playbackState = PLAYBACK_STATE_PAUSED
+        timelineAnimator.pause()
+    }
+
+    fun resumeNow() {
+        playbackState = PLAYBACK_STATE_PLAYING
+        if (timelineAnimator.isPaused) {
+            timelineAnimator.resume()
+        } else timelineAnimator.start()
+    }
+
     private inner class TimelineAnimatorListener : Animator.AnimatorListener {
         override fun onAnimationRepeat(animation: Animator?) {
 
@@ -905,5 +981,82 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
             playbackState = PLAYBACK_STATE_PLAYING
         }
 
+    }
+
+    override fun onSaveInstanceState(): Parcelable {
+        val superState = super.onSaveInstanceState()
+        val savedState = SavedState(superState)
+        savedState.trackTimelineX = currentPlaybackTimelineX
+        savedState.timeElapsedSinceStart = timeElapsedSinceTrackStartedToBePlayed
+        savedState.trackDuration = currentTrack.duration
+        savedState.trackBand = currentTrack.band!!
+        savedState.trackTitle = currentTrack.title!!
+        savedState.playbackState = playbackState
+
+        Log.i("ON SAVE", "$timeElapsedSinceTrackStartedToBePlayed")
+
+      //  onControlClickListener?.onPauseClicked()
+
+        return savedState
+    }
+
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state !is SavedState) {
+            super.onRestoreInstanceState(state)
+            return
+        }
+
+
+        this.currentPlaybackTimelineX = state.trackTimelineX
+        this.timeElapsedSinceTrackStartedToBePlayed = state.timeElapsedSinceStart
+        this.currentTrack.band = state.trackBand
+        this.currentTrack.title = state.trackTitle
+        this.currentTrack.duration = state.trackDuration
+        this.playbackState = state.playbackState
+
+        super.onRestoreInstanceState(state.superState)
+    }
+
+    internal class SavedState : View.BaseSavedState {
+
+        var timeElapsedSinceStart: Int = 0
+        var trackTimelineX: Float = 0f
+        var trackTitle: String = ""
+        var trackBand: String = ""
+        var playbackState: Int = 1 // PLAYBACK_STATE_PAUSED
+        var trackDuration: Int = 0
+
+        constructor(superState: Parcelable) : super(superState)
+
+        private constructor(`in`: Parcel) : super(`in`) {
+            this.timeElapsedSinceStart = `in`.readInt()
+            this.trackTimelineX = `in`.readFloat()
+            this.trackTitle = `in`.readString()
+            this.trackBand = `in`.readString()
+            this.playbackState = `in`.readInt()
+            this.trackDuration = `in`.readInt()
+        }
+
+        override fun writeToParcel(out: Parcel, flags: Int) {
+            super.writeToParcel(out, flags)
+            out.writeInt(this.timeElapsedSinceStart)
+            out.writeFloat(this.trackTimelineX)
+            out.writeString(this.trackTitle)
+            out.writeString(this.trackBand)
+            out.writeInt(this.playbackState)
+            out.writeInt(this.trackDuration)
+        }
+
+        companion object {
+            val CREATOR: Parcelable.Creator<SavedState> = object : Parcelable.Creator<SavedState> {
+                override fun createFromParcel(`in`: Parcel): SavedState {
+                    return SavedState(`in`)
+                }
+
+                override fun newArray(size: Int): Array<SavedState> {
+                    return arrayOf()
+                }
+            }
+        }
     }
 }
