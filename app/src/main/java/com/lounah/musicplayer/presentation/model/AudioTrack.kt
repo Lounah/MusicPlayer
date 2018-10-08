@@ -10,8 +10,12 @@ data class AudioTrack(var title: String? = "",
                       val genre: String? = "",
                       var duration: Int = 0,
                       val albumCoverURL: String? = "",
-                      var isBeingPlayed: Boolean? = false,
+                      var playbackState: PlaybackState? = PlaybackState.IDLE,
                       val path: String? = "")
+
+enum class PlaybackState {
+ IS_BEING_PLAYED, IS_PAUSED, IDLE
+}
 
  fun audioTrackToMediaSource(track: AudioTrack, dataSourceFactory: DefaultDataSourceFactory): MediaSource
         = ExtractorMediaSource.Factory(dataSourceFactory).createMediaSource(Uri.parse(track.path))
