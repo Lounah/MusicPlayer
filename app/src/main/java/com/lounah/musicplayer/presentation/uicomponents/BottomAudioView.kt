@@ -47,6 +47,8 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
     var timeElapsedSinceTrackStartedToBePlayed: Int = 0
         set(newValue) {
             field = newValue
+
+            Log.i("TIMELINE ", "$timeElapsedSinceTrackStartedToBePlayed")
             invalidate()
         }
 
@@ -194,6 +196,7 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
     private var currentPlaybackTimelineX: Float = DEFAULT_MARGIN * 2f + ViewUtilities.dpToPx(12, context)
         set(newValue) {
             field = newValue
+            Log.i("TIMELINE ", "$currentPlaybackTimelineX")
             invalidate()
         }
 
@@ -932,6 +935,7 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
             timeLineAnimationLastAnimatedValue = animatedValue
             timeElapsedSinceTrackStartedToBePlayed = calculateTimeElapsedBasedOnCurrentX(currentPlaybackTimelineX).toInt()
             currentPlaybackTimelineX += delta
+            // if playbacktime == track.dur -> next
         }
     }
 
@@ -970,7 +974,7 @@ class BottomAudioView constructor(context: Context, attributeSet: AttributeSet?,
         }
 
         override fun onAnimationEnd(animation: Animator?) {
-            onControlClickListener?.onNextButtonClicked()
+            //onControlClickListener?.onNextButtonClicked()
         }
 
         override fun onAnimationCancel(animation: Animator?) {
