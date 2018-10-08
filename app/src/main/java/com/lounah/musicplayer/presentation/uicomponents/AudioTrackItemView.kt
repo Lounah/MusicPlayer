@@ -5,12 +5,15 @@ import android.content.Context
 import android.graphics.*
 import android.support.v4.content.ContextCompat
 import android.text.TextPaint
+import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
 import com.lounah.musicplayer.R
 import com.lounah.musicplayer.presentation.model.AudioTrack
 import com.lounah.musicplayer.util.ViewUtilities
-import kotlin.math.abs
+import android.util.TypedValue
+import com.lounah.musicplayer.presentation.model.PlaybackState
+
 
 class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSet?, defStyleRes: Int = 0)
     : View(context, attributeSet, defStyleRes) {
@@ -27,43 +30,42 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     private val DEFAULT_TRACK_TITLE_SIZE = ViewUtilities.spToPx(18f, context)
     private val DEFAULT_TRACK_BAND_TEXT_SIZE = ViewUtilities.spToPx(15f, context)
     private val DEFAULT_DURATION_TEXT_SIZE = ViewUtilities.spToPx(15f, context)
-    private val DEFAULT_ALBUM_COVER_SIZE = ViewUtilities.dpToPx(48, context)
+    private val DEFAULT_ALBUM_COVER_SIZE = ViewUtilities.dpToPx(56, context)
     private val DEFAULT_MARGIN_16_DP = ViewUtilities.dpToPx(16, context)
-    private val DEFAULT_PLAYBACK_ANIMATION_POLE_COLOR = Color.WHITE
+    private val DEFAULT_PAUSE_LOGO_COLOR = Color.WHITE
 
+    private val playIconDrawable = ContextCompat.getDrawable(context, R.drawable.media_item_ic_play)
 
     private var albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
 
     private lateinit var albumCoverRect: Rect
+    private lateinit var playIconRect: Rect
 
-    private val titleTextPaint = TextPaint()
-    private val bandTextPaint = TextPaint()
-    private val durationTextPaint = TextPaint()
+    private val titleTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+    private val bandTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+    private val durationTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
     private val albumCoverPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val animationPolePaint = Paint()
+    private val pauseLogoPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private val clipPath = Path()
 
     private var durationMeasuredWidth = 0f
 
-    private val playbackAnimation = ValueAnimator.ofFloat(0f, 100f)
-    private var playbackAnimationLastAnimatedValue = 0f
+    private val pauseAlbumCoverShadeMatrix = floatArrayOf(
+            0f, -3f, -3f, 0f, -3f,
+            0f, -3f, -3f, 0f, -2f,
+            0f, -3f, -2.9f, 0f, -1f,
+            0f, -0.6f, 0.3f, 1.1f, 0f
+            )
 
-    private var firstPlaybackPoleTopY = 0f
-        set(newValue) {
-            field = newValue
-            invalidate()
-        }
-    private var secondPlaybackPoleTopY = 0f
-        set(newValue) {
-            field = newValue
-            invalidate()
-        }
-    private var thirdPlaybackPoleTopY = 0f
-        set(newValue) {
-            field = newValue
-            invalidate()
-        }
+    private val colorMatrix = ColorMatrix(pauseAlbumCoverShadeMatrix)
+    private val colorMatrixFilter = ColorMatrixColorFilter(colorMatrix)
+
+    private var trackTitleMeasuredWidth = 0f
+    private var trackBandMeasuredWidth = 0f
+
+    private lateinit var ellipsizedTrackTitle: CharSequence
+    private lateinit var ellipsizedTrackBand: CharSequence
 
     init {
 
@@ -75,23 +77,13 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
         durationTextPaint.textSize = DEFAULT_DURATION_TEXT_SIZE.toFloat()
         durationTextPaint.color = ContextCompat.getColor(context, R.color.blue)
 
-        animationPolePaint.color = DEFAULT_PLAYBACK_ANIMATION_POLE_COLOR
-        animationPolePaint.strokeWidth = ViewUtilities.dpToPx(10, context).toFloat()
+        pauseLogoPaint.color = DEFAULT_PAUSE_LOGO_COLOR
+        pauseLogoPaint.strokeWidth = ViewUtilities.dpToPx(10, context).toFloat()
 
-        playbackAnimation.duration = 100
-        playbackAnimation.addUpdateListener {
-            val animatedValue = it.animatedValue as Float
-            val delta = abs(animatedValue - playbackAnimationLastAnimatedValue)
-            playbackAnimationLastAnimatedValue = animatedValue
+        val outValue = TypedValue()
+        getContext().theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+        setBackgroundResource(outValue.resourceId)
 
-            firstPlaybackPoleTopY -= delta / 20
-            secondPlaybackPoleTopY -= delta / 30
-            thirdPlaybackPoleTopY -= delta / 40
-
-        }
-        playbackAnimation.repeatCount = -1
-
-        playbackAnimation.start()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -110,33 +102,40 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
         super.onDraw(canvas)
 
         if (!::albumCoverRect.isInitialized) {
-            albumCoverRect = Rect(DEFAULT_MARGIN_16_DP,
-                    DEFAULT_MARGIN_16_DP,
-                    DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE,
-                    height - DEFAULT_MARGIN_16_DP)
-            durationMeasuredWidth = durationTextPaint.measureText(parseSecondsToText(currentTrack?.duration!!))
+            initRects()
+            measureTextViews()
+        }
 
-            if (currentTrack?.isBeingPlayed!!) {
-                albumCoverPaint.alpha = 100
-                canvas.drawLine(DEFAULT_MARGIN_16_DP
-                        + ViewUtilities.dpToPx(5, context).toFloat(),
-                        height - DEFAULT_MARGIN_16_DP - ViewUtilities.dpToPx(5, context).toFloat(),
-                        DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(5, context).toFloat(), firstPlaybackPoleTopY,
-                        animationPolePaint)
+        when (currentTrack?.playbackState) {
+            PlaybackState.IS_BEING_PLAYED, PlaybackState.IS_PAUSED -> {
+                albumCoverPaint.colorFilter = colorMatrixFilter
+            }
+            PlaybackState.IDLE -> {
+                albumCoverPaint.colorFilter = null
             }
         }
 
         currentTrack?.let {
 
-            // TITLE
-            canvas.drawText(it.title,
-                    DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
-                    DEFAULT_MARGIN_16_DP * 2f, titleTextPaint)
-
             // BAND
-            canvas.drawText(it.band,
-                    DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
-                    DEFAULT_MARGIN_16_DP * 4f, bandTextPaint)
+            if (::ellipsizedTrackBand.isInitialized && ellipsizedTrackBand.isNotEmpty()) {
+                canvas.drawText(ellipsizedTrackBand, 0, ellipsizedTrackBand.length, DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
+                        DEFAULT_MARGIN_16_DP * 4f, bandTextPaint)
+            } else {
+                canvas.drawText(it.band,
+                        DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
+                        DEFAULT_MARGIN_16_DP * 4f, bandTextPaint)
+            }
+
+            // TITLE
+            if (::ellipsizedTrackTitle.isInitialized && ellipsizedTrackTitle.isNotEmpty()) {
+                canvas.drawText(ellipsizedTrackTitle, 0, ellipsizedTrackTitle.length, DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
+                        DEFAULT_MARGIN_16_DP * 2f, titleTextPaint)
+            } else {
+                canvas.drawText(it.title,
+                        DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
+                        DEFAULT_MARGIN_16_DP * 2f, titleTextPaint)
+            }
 
             // DURATION
             canvas.drawText(parseSecondsToText(it.duration),
@@ -149,6 +148,58 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
             canvas.clipPath(clipPath)
             canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumCoverPaint)
             canvas.restore()
+
+
+            if (currentTrack?.playbackState == PlaybackState.IS_BEING_PLAYED) {
+                canvas.drawLine(DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(18, context).toFloat(), height - DEFAULT_MARGIN_16_DP * 2f,DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(18, context).toFloat(), DEFAULT_MARGIN_16_DP * 2f, pauseLogoPaint)
+                canvas.drawLine(DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(12, context) + ViewUtilities.dpToPx(24, context).toFloat(), height - DEFAULT_MARGIN_16_DP * 2f, DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(12, context) + ViewUtilities.dpToPx(24, context).toFloat(), DEFAULT_MARGIN_16_DP * 2f, pauseLogoPaint)
+            } else if (currentTrack?.playbackState == PlaybackState.IS_PAUSED) {
+                playIconDrawable?.let {
+                    it.bounds = playIconRect
+                    it.draw(canvas)
+                }
+            }
+        }
+    }
+
+    private fun initRects() {
+        albumCoverRect = Rect(DEFAULT_MARGIN_16_DP,
+                DEFAULT_MARGIN_16_DP,
+                DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE,
+                height - DEFAULT_MARGIN_16_DP)
+
+        playIconRect = Rect(DEFAULT_MARGIN_16_DP * 2, DEFAULT_MARGIN_16_DP * 2, DEFAULT_ALBUM_COVER_SIZE, height - DEFAULT_MARGIN_16_DP * 2)
+    }
+
+    private fun measureTextViews() {
+
+        durationMeasuredWidth = durationTextPaint.measureText(parseSecondsToText(currentTrack?.duration!!))
+
+
+        if (trackBandMeasuredWidth == 0f) {
+            trackBandMeasuredWidth = bandTextPaint.measureText(currentTrack!!.band)
+
+            val availableForBandLeftBorder = DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE + DEFAULT_MARGIN_16_DP
+            val availableForBandRightBorder = width - DEFAULT_MARGIN_16_DP - durationMeasuredWidth
+
+            val availableForBandWidth = availableForBandRightBorder - availableForBandLeftBorder
+
+            if (trackBandMeasuredWidth > availableForBandWidth) {
+                ellipsizedTrackBand = TextUtils.ellipsize(currentTrack!!.band, bandTextPaint, availableForBandWidth, TextUtils.TruncateAt.END)
+            }
+        }
+
+        if (trackTitleMeasuredWidth == 0f) {
+            trackTitleMeasuredWidth = titleTextPaint.measureText(currentTrack!!.title)
+
+            val availableForTitleLeftBorder = DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE + DEFAULT_MARGIN_16_DP
+            val availableForTitleRightBorder = width - DEFAULT_MARGIN_16_DP
+
+            val availableForTitleWidth = availableForTitleRightBorder - availableForTitleLeftBorder
+
+            if (trackTitleMeasuredWidth > availableForTitleWidth) {
+                ellipsizedTrackTitle = TextUtils.ellipsize(currentTrack!!.title, titleTextPaint, availableForTitleWidth.toFloat(), TextUtils.TruncateAt.END)
+            }
         }
     }
 

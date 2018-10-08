@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import com.lounah.musicplayer.presentation.model.AudioTrack
+import com.lounah.musicplayer.presentation.model.PlaybackState
 import com.lounah.musicplayer.presentation.uicomponents.AudioTrackItemView
 
 class AudioTracksRecyclerViewAdapter(private val onTrackClickedCallback: OnTrackClickedCallback) : RecyclerView.Adapter<AudioTracksRecyclerViewAdapter.ViewHolder>() {
@@ -24,8 +25,6 @@ class AudioTracksRecyclerViewAdapter(private val onTrackClickedCallback: OnTrack
         val item = audioTracks[position]
         viewHolder.itemView.setOnClickListener {
             onTrackClickedCallback.onTrackClicked(item, position)
-            item.isBeingPlayed = !item.isBeingPlayed!!
-            notifyItemRangeChanged(0, audioTracks.size  - 1)
         }
         viewHolder.bind(item)
     }
@@ -60,6 +59,25 @@ class AudioTracksRecyclerViewAdapter(private val onTrackClickedCallback: OnTrack
         } else {
             audioTracks.size - 1
         }
+    }
+
+    fun notifyItemSelected(position: Int) {
+        var lastPlayedIndex = -1
+        audioTracks.forEachIndexed { index, track ->
+            if (track.playbackState != PlaybackState.IDLE) {
+                lastPlayedIndex = index
+            }
+        }
+        if (position != lastPlayedIndex) {
+            if (lastPlayedIndex != -1)
+                audioTracks[lastPlayedIndex].playbackState = PlaybackState.IDLE
+            audioTracks[position].playbackState = PlaybackState.IS_BEING_PLAYED
+        } else {
+            if (audioTracks[position].playbackState == PlaybackState.IS_BEING_PLAYED)
+                audioTracks[position].playbackState = PlaybackState.IS_PAUSED
+            else audioTracks[position].playbackState = PlaybackState.IS_BEING_PLAYED
+        }
+        notifyItemRangeChanged(0, audioTracks.size - 1)
     }
 
     interface OnTrackClickedCallback {

@@ -18,6 +18,7 @@ import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.*
 import android.util.Log
+import com.lounah.musicplayer.presentation.model.PlaybackState
 
 class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
 
@@ -138,6 +139,27 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
                 }
                 bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.audioTracks[position]
                 currentlyPlayingTrackIndex = position
+
+                when(audioTracksAdapter.audioTracks[currentlyPlayingTrackIndex].playbackState) {
+                    PlaybackState.IS_BEING_PLAYED -> {
+                        sendMessage(activityMessenger,
+                                AudioPlayerService.MESSAGE_PAUSE,
+                                currentlyPlayingTrackIndex,
+                                audioService)
+                    }
+                    PlaybackState.IDLE -> {
+                        sendMessage(activityMessenger,
+                                AudioPlayerService.MESSAGE_PLAY,
+                                currentlyPlayingTrackIndex,
+                                audioService)
+                    }
+                    PlaybackState.IS_PAUSED -> {
+                        sendMessage(activityMessenger,
+                                AudioPlayerService.MESSAGE_PLAY,
+                                currentlyPlayingTrackIndex,
+                                audioService)
+                    }
+                }
                 // TODO: handle animation on track changes
 
             }
@@ -185,9 +207,11 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         override fun handleMessage(msg: Message) {
             when (msg.what) {
                 AudioPlayerService.STATE_PAUSED -> {
+                    audioTracksAdapter.notifyItemSelected(currentlyPlayingTrackIndex)
                     bottom_audio_view_activity_tracks.pauseNow()
                 }
                 AudioPlayerService.STATE_PLAYING -> {
+                    audioTracksAdapter.notifyItemSelected(currentlyPlayingTrackIndex)
                     bottom_audio_view_activity_tracks.resumeNow()
                 }
                 AudioPlayerService.STATE_NEXT_TRACK -> {
