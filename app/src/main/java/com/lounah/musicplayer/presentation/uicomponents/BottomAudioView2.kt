@@ -8,9 +8,11 @@ import android.graphics.*
 import android.os.Parcel
 import android.os.Parcelable
 import android.support.v4.content.ContextCompat
+import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import com.lounah.musicplayer.presentation.model.AudioTrack
 import android.util.TypedValue
@@ -22,8 +24,14 @@ import com.lounah.musicplayer.util.ViewUtilities.drawOnClickShape
 import com.lounah.musicplayer.util.ViewUtilities.isMotionEventInRect
 import kotlin.math.abs
 import android.view.animation.LinearInterpolator
+import com.lounah.musicplayer.util.ViewUtilities
 
 
+/*
+    Да, это ужасно
+    Размеры заданы в процентах -- только так мне удалось добиться консистентности на
+    разных экранах
+ */
 class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?, defStyleRes: Int = 0)
     : View(context, attributeSet, defStyleRes) {
 
@@ -64,7 +72,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             trackBandMeasuredWidth = 0f
             currentPlaybackTime = 0
             timeLineAnimationLastAnimatedValue = 0f
-            currentTimelineX = pxFromPercentOfWidth(8.9f).toFloat()
+            currentTimelineX = if (!ViewUtilities.isInLandscape(context)) pxFromPercentOfWidth(8.9f).toFloat() else 0f
             if (::timelineAnimator.isInitialized) {
                 timelineAnimator.duration = currentTrack.duration * 1000L
                 timelineAnimator.start()
@@ -386,6 +394,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
     private var albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
 
+
     private lateinit var collapsedNextIconRect: Rect
     private lateinit var collapsedPauseIconRect: Rect
     private lateinit var collapsedPlayIconRect: Rect
@@ -523,10 +532,12 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                     return@setOnTouchListener true
                                 }
                                 else -> {
-                                    expandAnimator.start()
-                                    collapsedPauseIconRect.offsetTo(width, height)
-                                    collapsedNextIconRect.offsetTo(width, height)
-                                    playSoundEffect(SoundEffectConstants.CLICK)
+                                    if (!ViewUtilities.isInLandscape(context)) {
+                                        expandAnimator.start()
+                                        collapsedPauseIconRect.offsetTo(width, height)
+                                        collapsedNextIconRect.offsetTo(width, height)
+                                        playSoundEffect(SoundEffectConstants.CLICK)
+                                    }
                                     return@setOnTouchListener true
                                 }
                             }
@@ -704,18 +715,18 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         // TRACK TITLE
         if (collapsedTrackTitleMeasuredWidth > width - pxFromPercentOfWidth(47.2f) - playbackTimeMeasuredWidth) {
             val collapsedTrackTitle = TextUtils.ellipsize(currentTrack.title, expandedTrackTitlePaint, width - pxFromPercentOfWidth(47.2f) - playbackTimeMeasuredWidth, TextUtils.TruncateAt.END)
-            canvas.drawText(collapsedTrackTitle, 0, collapsedTrackTitle.length, pxFromPercentOfWidth(17.2f).toFloat(), height - COLLAPSED_TRACK_TITLE_MARGIN_BOTTOM.toFloat(), collapsedTrackTitleTextPaint)
+            canvas.drawText(collapsedTrackTitle, 0, collapsedTrackTitle.length, COLLAPSED_ALBUM_COVER_MARGIN * 2 + COLLAPSED_ALBUM_COVER_SIZE.toFloat(), height - COLLAPSED_TRACK_TITLE_MARGIN_BOTTOM.toFloat(), collapsedTrackTitleTextPaint)
         } else {
-            canvas.drawText(currentTrack.title, pxFromPercentOfWidth(17.2f).toFloat(), height - COLLAPSED_TRACK_TITLE_MARGIN_BOTTOM.toFloat(), collapsedTrackTitleTextPaint)
+            canvas.drawText(currentTrack.title, COLLAPSED_ALBUM_COVER_MARGIN * 2 + COLLAPSED_ALBUM_COVER_SIZE.toFloat(), height - COLLAPSED_TRACK_TITLE_MARGIN_BOTTOM.toFloat(), collapsedTrackTitleTextPaint)
         }
 
         // TRACK DURATION
         canvas.drawText(currentPlaybackTime.toTimeText,
-                width - pxFromPercentOfWidth(22.1f) - playbackTimeMeasuredWidth -COLLAPSED_BUTTON_PLAY_SIZE,
+                width - pxFromPercentOfWidth(22.1f) - playbackTimeMeasuredWidth - COLLAPSED_BUTTON_PLAY_SIZE,
                 height - COLLAPSED_TRACK_TITLE_MARGIN_BOTTOM.toFloat(),
                 trackPlaybackTimeCollapsedTextPaint)
 
-        when(currentAudioPlaybackState) {
+        when (currentAudioPlaybackState) {
             AudioPlaybackState.IDLE -> {
                 collapsedPlayIconDrawable?.let {
                     it.bounds = collapsedPlayIconRect
@@ -747,6 +758,24 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
         if (collapsedPauseButtonWasPressed) {
             drawOnClickShape(canvas, collapsedPauseIconRect, context, onClickPaint)
+        }
+
+        if (ViewUtilities.isInLandscape(context)) {
+
+            // Полоска со временем
+            canvas.drawLine(0f,
+                    height - COLLAPSED_VIEW_HEIGHT,
+                    width.toFloat(),
+                    height - COLLAPSED_VIEW_HEIGHT,
+                    trackBaseTimelinePaint)
+
+            // Закрашенная полоса со временем, прошедшим с начала трека
+            canvas.drawLine(0f,
+                    height - COLLAPSED_VIEW_HEIGHT,
+                    currentTimelineX,
+                    height - COLLAPSED_VIEW_HEIGHT,
+                    trackFilledTimelinePaint)
+
         }
 
         if (currentViewState == ViewState.EXPANDED) {
@@ -801,7 +830,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             }
             canvas.drawCircle(width / 2f, height - EXPANDED_BUTTON_PLAY_MARGIN_BOTTOM - EXPANDED_BUTTON_PLAY_SIZE / 2F, 36.dpToPx.toFloat(), controlButtonPaint)
 
-            when(currentAudioPlaybackState) {
+            when (currentAudioPlaybackState) {
                 AudioPlaybackState.IDLE -> {
                     expandedPlayIconDrawable?.let {
                         it.bounds = expandedPlayButtonRect
@@ -876,42 +905,42 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
     private fun initDefaultValues() {
 
-        COLLAPSED_ALBUM_COVER_SIZE = pxFromPercentOfWidth(11.1f)
-        COLLAPSED_ALBUM_COVER_MARGIN = pxFromPercentOfWidth(2.8f)
+        COLLAPSED_ALBUM_COVER_SIZE = 40.dpToPx
+        COLLAPSED_ALBUM_COVER_MARGIN = 10.dpToPx
 
         /*
             TRACK TITLE, COLLAPSED STATE
          */
         COLLAPSED_TRACK_TITLE_TEXT_SIZE = 16f.spToPx
-        COLLAPSED_TRACK_TITLE_MARGIN_TOP = pxFromPercentOfHeight(3.3f)
-        COLLAPSED_TRACK_TITLE_MARGIN_BOTTOM = pxFromPercentOfHeight(3.3f)
+        COLLAPSED_TRACK_TITLE_MARGIN_TOP = 20.dpToPx
+        COLLAPSED_TRACK_TITLE_MARGIN_BOTTOM = 20.dpToPx
 
         /*
             NEXT BUTTON, COLLAPSED STATE
          */
         COLLAPSED_BUTTON_NEXT_SIZE = 28.dpToPx
-        COLLAPSED_BUTTON_NEXT_MARGIN_END = pxFromPercentOfWidth(5f)
-        COLLAPSED_BUTTON_NEXT_MARGIN_TOP = pxFromPercentOfHeight(2.5f)
-        COLLAPSED_BUTTON_NEXT_MARGIN_BOTTOM = pxFromPercentOfHeight(2.5f)
-        COLLAPSED_BUTTON_NEXT_MARGIN_START = pxFromPercentOfWidth(5.6f)
+        COLLAPSED_BUTTON_NEXT_MARGIN_END = pxFromPercentOfWidth(5.6f)
+        COLLAPSED_BUTTON_NEXT_MARGIN_TOP = 20.dpToPx
+        COLLAPSED_BUTTON_NEXT_MARGIN_BOTTOM = 12.dpToPx
+        COLLAPSED_BUTTON_NEXT_MARGIN_START = 24.dpToPx
 
         /*
             PLAY BUTTON, COLLAPSED STATE
          */
         COLLAPSED_BUTTON_PLAY_SIZE = 24.dpToPx
         COLLAPSED_BUTTON_PLAY_MARGIN_END = 0.dpToPx
-        COLLAPSED_BUTTON_PLAY_MARGIN_TOP = pxFromPercentOfHeight(2.3f)
-        COLLAPSED_BUTTON_PLAY_MARGIN_BOTTOM = pxFromPercentOfHeight(2.3f)
-        COLLAPSED_BUTTON_PLAY_MARGIN_START = pxFromPercentOfWidth(3.9f)
+        COLLAPSED_BUTTON_PLAY_MARGIN_TOP = 18.dpToPx
+        COLLAPSED_BUTTON_PLAY_MARGIN_BOTTOM = 12.dpToPx
+        COLLAPSED_BUTTON_PLAY_MARGIN_START = 24.dpToPx
 
         /*
             PAUSE BUTTON, COLLAPSED STATE
         */
         COLLAPSED_BUTTON_PAUSE_SIZE = 28.dpToPx
         COLLAPSED_BUTTON_PAUSE_MARGIN_END = 0.dpToPx
-        COLLAPSED_BUTTON_PAUSE_MARGIN_TOP = pxFromPercentOfHeight(2.5f)
-        COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM = pxFromPercentOfHeight(2.5f)
-        COLLAPSED_BUTTON_PAUSE_MARGIN_START = pxFromPercentOfWidth(3.9f)
+        COLLAPSED_BUTTON_PAUSE_MARGIN_TOP = 20.dpToPx
+        COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM = 12.dpToPx
+        COLLAPSED_BUTTON_PAUSE_MARGIN_START = 24.dpToPx
 
         /*
             TRACK DURATION, COLLAPSED STATE
@@ -919,8 +948,8 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         COLLAPSED_TRACK_DURATION_TEXT_SIZE = 12f.spToPx
         COLLAPSED_TRACK_DURATION_TEXT_MARGIN_START = 0.dpToPx
         COLLAPSED_TRACK_DURATION_TEXT_MARGIN_END = 0.dpToPx
-        COLLAPSED_TRACK_DURATION_TEXT_MARGIN_TOP = 25.dpToPx
-        COLLAPSED_TRACK_DURATION_TEXT_MARGIN_BOTTOM = 21.dpToPx
+        COLLAPSED_TRACK_DURATION_TEXT_MARGIN_TOP = 20.dpToPx
+        COLLAPSED_TRACK_DURATION_TEXT_MARGIN_BOTTOM = 20.dpToPx
 
         /*
             SHUFFLE BUTTON, EXPANDED STATE
@@ -1074,11 +1103,28 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             currentTimelineX = EXPANDED_TIMELINE_MARGIN_START.toFloat()
         }
 
-        timelineAnimator = ValueAnimator.ofFloat(0f, abs(width - pxFromPercentOfWidth(17.8f)).toFloat())
-        timelineAnimator.duration = (currentTrack.duration - currentPlaybackTime) * 1000L
-        timelineAnimator.interpolator = LinearInterpolator()
-        timelineAnimator.addUpdateListener(TimelineValueAnimatorListener())
-        timelineAnimator.addListener(TimelineAnimatorListener())
+        if (currentPlaybackTime == 0) {
+            timelineAnimator = ValueAnimator.ofFloat(0f, abs(width - 2 * EXPANDED_TIMELINE_MARGIN_END.toFloat()).toFloat())
+            timelineAnimator.duration = (currentTrack.duration) * 1000L
+            timelineAnimator.interpolator = LinearInterpolator()
+            timelineAnimator.addUpdateListener(TimelineValueAnimatorListener())
+            timelineAnimator.addListener(TimelineAnimatorListener())
+        } else {
+
+            currentTimelineX = calculateCurrentXBasedOnTime(currentPlaybackTime)
+
+            timelineAnimator = if (ViewUtilities.isInLandscape(context)) {
+                ValueAnimator.ofFloat(0f, abs(width - currentTimelineX))
+            } else {
+                ValueAnimator.ofFloat(0f, abs(width - 2 * EXPANDED_TIMELINE_MARGIN_END.toFloat() - currentTimelineX))
+            }
+            timelineAnimator.duration = (currentTrack.duration - currentPlaybackTime) * 1000L
+            timelineAnimator.interpolator = LinearInterpolator()
+            timelineAnimator.addUpdateListener(TimelineValueAnimatorListener())
+            timelineAnimator.addListener(TimelineAnimatorListener())
+
+            timelineAnimator.start()
+        }
     }
 
     private fun measureTextViews() {
@@ -1132,7 +1178,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         )
 
         collapsedNextIconRect = Rect(
-            width - COLLAPSED_BUTTON_NEXT_MARGIN_END - COLLAPSED_BUTTON_NEXT_SIZE,
+                width - COLLAPSED_BUTTON_NEXT_MARGIN_END - COLLAPSED_BUTTON_NEXT_SIZE,
                 height - COLLAPSED_BUTTON_NEXT_SIZE - COLLAPSED_BUTTON_NEXT_MARGIN_BOTTOM,
                 width - COLLAPSED_BUTTON_NEXT_MARGIN_END,
                 height - COLLAPSED_BUTTON_NEXT_MARGIN_BOTTOM
@@ -1214,17 +1260,19 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         val superState = super.onSaveInstanceState()
         val savedState = SavedState(superState)
 
-        savedState.playbackTime = currentPlaybackTime
-        savedState.trackDuration = currentTrack.duration
-        savedState.playbackState = when (currentAudioPlaybackState) {
-            AudioPlaybackState.IDLE -> 0
-            AudioPlaybackState.PAUSED -> 1
-            AudioPlaybackState.PLAYING -> 2
+        if (currentTrack.duration != 0) {
+            savedState.playbackTime = currentPlaybackTime
+            savedState.trackDuration = currentTrack.duration
+            savedState.playbackState = when (currentAudioPlaybackState) {
+                AudioPlaybackState.IDLE -> 0
+                AudioPlaybackState.PAUSED -> 1
+                AudioPlaybackState.PLAYING -> 2
+            }
+            savedState.trackBand = currentTrack.band!!
+            savedState.trackTitle = currentTrack.title!!
+            return savedState
         }
-        savedState.trackBand = currentTrack.band!!
-        savedState.trackTitle = currentTrack.title!!
-
-        return savedState
+        return superState
     }
 
     override fun onRestoreInstanceState(state: Parcelable?) {
@@ -1233,17 +1281,18 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             return
         }
 
-        this.currentPlaybackTime = state.playbackTime
-        this.currentTrack.band = state.trackBand
-        this.currentTrack.title = state.trackTitle
-        this.currentTrack.duration = state.trackDuration
-        this.currentAudioPlaybackState = when (state.playbackState) {
-            0 -> AudioPlaybackState.IDLE
-            1 -> AudioPlaybackState.PAUSED
-            2 -> AudioPlaybackState.PLAYING
-            else -> AudioPlaybackState.IDLE
+        if (state.trackDuration != 0) {
+            this.currentPlaybackTime = state.playbackTime
+            this.currentTrack.band = state.trackBand
+            this.currentTrack.title = state.trackTitle
+            this.currentTrack.duration = state.trackDuration
+            this.currentAudioPlaybackState = when (state.playbackState) {
+                0 -> AudioPlaybackState.IDLE
+                1 -> AudioPlaybackState.PAUSED
+                2 -> AudioPlaybackState.PLAYING
+                else -> AudioPlaybackState.IDLE
+            }
         }
-
         super.onRestoreInstanceState(state.superState)
     }
 
@@ -1355,8 +1404,6 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
         override fun onAnimationEnd(animation: Animator?) {
             currentViewState = ViewState.EXPANDED
-
-           // collapseAnimator.start()
         }
 
         override fun onAnimationStart(animation: Animator?) {
@@ -1398,14 +1445,40 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             val animatedValue = animation.animatedValue as Float
             val delta = abs(animatedValue - timeLineAnimationLastAnimatedValue)
             timeLineAnimationLastAnimatedValue = animatedValue
-            currentPlaybackTime = calculateTimeElapsedBasedOnCurrentX(currentTimelineX).toInt()
             currentTimelineX += delta
+            currentPlaybackTime = calculateTimeElapsedBasedOnCurrentX(currentTimelineX)
+            if (currentPlaybackTime == currentTrack.duration) {
+                currentTrackStateChangeListener?.onTrackEnded()
+            }
         }
     }
 
-    private fun calculateTimeElapsedBasedOnCurrentX(currentX: Float): Float {
-        val pxPerSecond = (width - pxFromPercentOfWidth(8.9f) - currentX - pxFromPercentOfWidth(8.9f)) / currentTrack.duration
-        return currentX / pxPerSecond
+    private fun calculateTimeElapsedBasedOnCurrentX(currentX: Float): Int {
+        val pxPerSecond: Float
+        val timeBasedOnCurrentX: Int
+
+        if (ViewUtilities.isInLandscape(context)) {
+            pxPerSecond = width / currentTrack.duration.toFloat()
+            timeBasedOnCurrentX = Math.ceil(currentX / pxPerSecond.toDouble()).toInt()
+        } else {
+            pxPerSecond = (width - 2 * EXPANDED_TIMELINE_MARGIN_END.toFloat()) / currentTrack.duration
+            timeBasedOnCurrentX = Math.ceil((currentX - EXPANDED_TIMELINE_MARGIN_END) / pxPerSecond.toDouble()).toInt()
+        }
+        return timeBasedOnCurrentX
+    }
+
+    private fun calculateCurrentXBasedOnTime(currentPlaybackTime: Int): Float {
+        val pxPerSecond: Float
+        val currentX: Float
+
+        if (ViewUtilities.isInLandscape(context)) {
+            pxPerSecond = width / currentTrack.duration.toFloat()
+            currentX = currentPlaybackTime * pxPerSecond
+        } else {
+            pxPerSecond = (width - 2 * EXPANDED_TIMELINE_MARGIN_END.toFloat()) / currentTrack.duration
+            currentX = currentPlaybackTime * pxPerSecond + EXPANDED_TIMELINE_MARGIN_END.toFloat()
+        }
+        return currentX
     }
 
 
@@ -1442,18 +1515,21 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
     fun pauseNow() {
         currentAudioPlaybackState = AudioPlaybackState.PAUSED
-        timelineAnimator.pause()
+        if (::timelineAnimator.isInitialized)
+            timelineAnimator.pause()
     }
 
     fun resumeNow() {
         currentAudioPlaybackState = AudioPlaybackState.PLAYING
-        if (timelineAnimator.isPaused) {
-            timelineAnimator.resume()
-        } else timelineAnimator.start()
+        if (::timelineAnimator.isInitialized) {
+            if (timelineAnimator.isPaused) {
+                timelineAnimator.resume()
+            } else timelineAnimator.start()
+        }
     }
 
     val Int.toTimeText: String
-        get()  {
+        get() {
             val minutes = (this % 3600) / 60
             val seconds = this % 60
             return String.format("%02d:%02d", minutes, seconds)
