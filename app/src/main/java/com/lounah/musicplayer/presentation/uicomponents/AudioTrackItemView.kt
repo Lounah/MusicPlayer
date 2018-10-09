@@ -1,8 +1,9 @@
 package com.lounah.musicplayer.presentation.uicomponents
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
+import android.os.Parcel
+import android.os.Parcelable
 import android.support.v4.content.ContextCompat
 import android.text.TextPaint
 import android.text.TextUtils
@@ -27,7 +28,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
             invalidate()
         }
 
-    private val DEFAULT_TRACK_TITLE_SIZE = ViewUtilities.spToPx(18f, context)
+    private val DEFAULT_TRACK_TITLE_SIZE = ViewUtilities.spToPx(15f, context)
     private val DEFAULT_TRACK_BAND_TEXT_SIZE = ViewUtilities.spToPx(15f, context)
     private val DEFAULT_DURATION_TEXT_SIZE = ViewUtilities.spToPx(15f, context)
     private val DEFAULT_ALBUM_COVER_SIZE = ViewUtilities.dpToPx(56, context)
@@ -180,7 +181,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
             trackBandMeasuredWidth = bandTextPaint.measureText(currentTrack!!.band)
 
             val availableForBandLeftBorder = DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE + DEFAULT_MARGIN_16_DP
-            val availableForBandRightBorder = width - DEFAULT_MARGIN_16_DP - durationMeasuredWidth
+            val availableForBandRightBorder = width - DEFAULT_MARGIN_16_DP - durationMeasuredWidth - DEFAULT_MARGIN_16_DP
 
             val availableForBandWidth = availableForBandRightBorder - availableForBandLeftBorder
 
@@ -193,7 +194,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
             trackTitleMeasuredWidth = titleTextPaint.measureText(currentTrack!!.title)
 
             val availableForTitleLeftBorder = DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE + DEFAULT_MARGIN_16_DP
-            val availableForTitleRightBorder = width - DEFAULT_MARGIN_16_DP
+            val availableForTitleRightBorder = width - DEFAULT_MARGIN_16_DP - durationMeasuredWidth - DEFAULT_MARGIN_16_DP
 
             val availableForTitleWidth = availableForTitleRightBorder - availableForTitleLeftBorder
 
@@ -221,6 +222,62 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
             }
             View.MeasureSpec.UNSPECIFIED -> contentSize
             else -> contentSize
+        }
+    }
+
+    override fun onSaveInstanceState(): Parcelable {
+        val superState = super.onSaveInstanceState()
+        val savedState = SavedState(superState)
+         savedState.playbackState = when (currentTrack?.playbackState!!) {
+                PlaybackState.IDLE -> 0
+             PlaybackState.IS_PAUSED -> 1
+             PlaybackState.IS_BEING_PLAYED -> 2
+            }
+            return savedState
+    }
+
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state !is SavedState) {
+            super.onRestoreInstanceState(state)
+            return
+        }
+
+        this.currentTrack?.playbackState = when (state.playbackState) {
+            0 -> PlaybackState.IDLE
+            1 -> PlaybackState.IS_PAUSED
+            2 -> PlaybackState.IS_BEING_PLAYED
+            else -> PlaybackState.IDLE
+        }
+
+        super.onRestoreInstanceState(state.superState)
+    }
+
+
+    internal class SavedState : View.BaseSavedState {
+
+        var playbackState: Int = 0 // 0 -- IDLE, 1 -- PAUSED, 2 -- PLAYING
+
+        constructor(superState: Parcelable) : super(superState)
+
+        private constructor(`in`: Parcel) : super(`in`) {
+            this.playbackState = `in`.readInt()
+        }
+
+        override fun writeToParcel(out: Parcel, flags: Int) {
+            super.writeToParcel(out, flags)
+            out.writeInt(this.playbackState)
+        }
+
+        companion object {
+            val CREATOR: Parcelable.Creator<SavedState> = object : Parcelable.Creator<SavedState> {
+                override fun createFromParcel(`in`: Parcel): SavedState {
+                    return SavedState(`in`)
+                }
+
+                override fun newArray(size: Int): Array<SavedState> {
+                    return arrayOf()
+                }
+            }
         }
     }
 }
