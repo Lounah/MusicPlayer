@@ -1,7 +1,6 @@
 package com.lounah.musicplayer.core.audioplayer
 
 import android.content.Context
-import android.net.Uri
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.ExoPlayerFactory
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
