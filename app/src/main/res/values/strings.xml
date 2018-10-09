@@ -2,6 +2,7 @@
 
     <!-- App -->
     <string name="app_name">MusicPlayer</string>
+    <string name="stub_intro_audio_url">https://vk.com/mp3/audio_api_unavailable.mp3?extra=AennoenRvxrcBg92xO90sePiwhrqnZHwx2XZqMLICuvdDs52lZfrC1mUwgz6EgfTChn6ovu4udjZmZvfy2fJzdzYpvDJos96oMjYEhPwowrpytrPm1H0p2rsALDJvMv2mJjoC2u1qwXsC2zOuJnTB185nK5OsteTCxv1qw1yD3ncmenzndDqDM5xyY84uK5AwwveChrLzwvgEwfLqMXJq1DVChDkCNbNC1v1mM5QCwjHlwe1ndnRqxu2lY5yzuz2sMfZA3G3tYO4DtrQmM5VnZrXExu#AqS1nde</string>
 
     <!-- Browse Media Fragment -->
     <string name="where_to_search">Откуда играть музыку?</string>
