@@ -2,14 +2,8 @@ package com.lounah.musicplayer.core.audioplayer
 
 import android.content.Context
 import android.net.Uri
-import android.support.v4.media.session.PlaybackStateCompat
-import android.util.Log
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.ExoPlayerFactory
-import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.source.ConcatenatingMediaSource
-import com.google.android.exoplayer2.source.ExtractorMediaSource
-import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
@@ -41,12 +35,6 @@ class AudioPlayer private constructor(context: Context) {
         set(newValue) {
             field = newValue
             currentlyPlayingTrackIndex = -1
-//            val concatenatingAudioSource = ConcatenatingMediaSource()
-//            newValue
-//                    .map { audioTrackToMediaSource(it, dataSourceFactory) }
-//                    .forEach { concatenatingAudioSource.addMediaSource(it) }
-//            playbackEngine.prepare(concatenatingAudioSource)
-//            playbackEngine.seekTo(playbackEngine.nextWindowIndex, 10)
         }
 
     var isPaused = false
@@ -75,7 +63,7 @@ class AudioPlayer private constructor(context: Context) {
     }
 
     fun playAtIndexInQueue(index: Int) {
-        if (!isPaused) {
+        if (!isPaused || currentlyPlayingTrackIndex != index) {
             track = playbackQueue[index]
             currentlyPlayingTrackIndex = index
         }
@@ -101,6 +89,4 @@ class AudioPlayer private constructor(context: Context) {
         track = playbackQueue[currentlyPlayingTrackIndex]
         play()
     }
-
-    fun isInPlayableState() = playbackEngine.isCurrentWindowDynamic
 }
