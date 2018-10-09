@@ -17,7 +17,9 @@ import kotlinx.android.synthetic.main.activity_audio_tracks.*
 import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.*
+import android.util.Log
 import com.lounah.musicplayer.presentation.model.PlaybackState
+import com.lounah.musicplayer.presentation.uicomponents.BottomAudioView2
 
 class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
 
@@ -79,11 +81,6 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
 
         initUI()
         presenter.loadTracksFromFolder(absolutePath)
-
-        if (currentlySelectedTrackIndex != -1) {
-            audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
-            audioTracksAdapter.audioTracks[currentlySelectedTrackIndex].playbackState = currentlySelectedTrackState
-        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem?): Boolean {
@@ -123,6 +120,7 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
     }
 
     private fun initToolbar() {
+        setSupportActionBar(toolbar_activity_tracks)
         supportActionBar?.title = resources.getString(R.string.audio_files)
         supportActionBar?.setDisplayShowHomeEnabled(true)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -141,7 +139,7 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
                 bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.audioTracks[position]
                 currentlySelectedTrackIndex = position
 
-                when(audioTracksAdapter.audioTracks[currentlySelectedTrackIndex].playbackState) {
+                when (audioTracksAdapter.audioTracks[currentlySelectedTrackIndex].playbackState) {
                     PlaybackState.IS_BEING_PLAYED -> {
                         sendMessage(activityMessenger,
                                 AudioPlayerService.MESSAGE_PAUSE,
@@ -161,11 +159,9 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
                                 AudioPlayerService.MESSAGE_PLAY,
                                 currentlySelectedTrackIndex,
                                 audioService)
-                        currentlySelectedTrackState = PlaybackState.IS_PAUSED
+                        currentlySelectedTrackState = PlaybackState.IS_BEING_PLAYED
                     }
                 }
-                // TODO: handle animation on track changes
-
             }
         })
 
@@ -175,7 +171,9 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
     private fun initBottomAudioView() {
         if (currentlySelectedTrackIndex == -1)
             bottom_audio_view_activity_tracks.visibility = View.GONE
-        bottom_audio_view_activity_tracks.onControlClickListener = BottomViewControlButtonsListener()
+        bottom_audio_view_activity_tracks.controlButtonClickListener = BottomViewControlButtonsListener()
+        bottom_audio_view_activity_tracks.currentTrackStateChangeListener = BottomAudioViewTrackStateChangeListener()
+        bottom_audio_view_activity_tracks.viewStateChangeListener = BottomAudioViewStateChangeListener()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -199,6 +197,15 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (currentlySelectedTrackIndex != -1) {
+            audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
+            audioTracksAdapter.audioTracks[currentlySelectedTrackIndex].playbackState = currentlySelectedTrackState
+        }
+        audioTracksAdapter.notifyDataSetChanged()
+    }
+
     private fun sendMessage(replyTo: Messenger, what: Int, arg: Int = 0, messenger: Messenger?, obj: Any? = null) {
         val message = Message.obtain()
         message.what = what
@@ -212,17 +219,20 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         override fun handleMessage(msg: Message) {
             when (msg.what) {
                 AudioPlayerService.STATE_PAUSED -> {
-                    audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
+                    if (currentlySelectedTrackIndex != -1)
+                        audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
                     currentlySelectedTrackState = PlaybackState.IS_PAUSED
                     bottom_audio_view_activity_tracks.pauseNow()
                 }
                 AudioPlayerService.STATE_PLAYING -> {
-                    audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
+                    if (currentlySelectedTrackIndex != -1)
+                        audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
                     currentlySelectedTrackState = PlaybackState.IS_BEING_PLAYED
                     bottom_audio_view_activity_tracks.resumeNow()
                 }
                 AudioPlayerService.STATE_NEXT_TRACK -> {
-                    bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getNextItem(currentlySelectedTrackIndex)
+                    if (currentlySelectedTrackIndex != -1)
+                        bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getNextItem(currentlySelectedTrackIndex)
                     currentlySelectedTrackIndex = audioTracksAdapter.getNextItemPosition(currentlySelectedTrackIndex)
                 }
                 AudioPlayerService.STATE_TRACK_INITIAL -> {
@@ -232,25 +242,16 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         }
     }
 
-    private inner class BottomViewControlButtonsListener : BottomAudioView.OnControlButtonsClickListener {
-
-        override fun onPauseClicked() {
-            sendMessage(activityMessenger, AudioPlayerService.MESSAGE_PAUSE, messenger = audioService)
-        }
-
-        override fun onPlayClicked() {
+    private inner class BottomViewControlButtonsListener : BottomAudioView2.OnControlButtonClickListener {
+        override fun onPlayButtonClicked() {
             sendMessage(activityMessenger,
                     AudioPlayerService.MESSAGE_PLAY,
                     currentlySelectedTrackIndex,
                     audioService)
         }
 
-        override fun onShuffleClicked() {
-
-        }
-
-        override fun onMoreButtonClicked() {
-
+        override fun onPauseButtonClicked() {
+            sendMessage(activityMessenger, AudioPlayerService.MESSAGE_PAUSE, messenger = audioService)
         }
 
         override fun onNextButtonClicked() {
@@ -265,24 +266,34 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
             sendMessage(activityMessenger, AudioPlayerService.MESSAGE_PREVIOUS_TRACK, messenger = audioService)
         }
 
-        override fun onRepeatButtonClicked() {
-
+        override fun onShuffleClicked() {
+            // No op
         }
 
-        override fun onAddButtonClicked() {
-
+        override fun onRepeatClicked() {
+            // No op
         }
 
-        override fun onPlaybackTimeChanged(newPlaybackTimeSec: Int) {
-
+        override fun onShowAdditionalActionsClicked() {
+            // No op
         }
+    }
 
-        override fun onVisibilityChanged(newVisibilityState: Int) {
-            if (newVisibilityState == BottomAudioView.STATE_EXPANDING)
+    private inner class BottomAudioViewStateChangeListener : BottomAudioView2.OnViewStateChangeListener {
+        override fun onViewStateChanged(currentState: BottomAudioView2.ViewState) {
+            if (currentState == BottomAudioView2.ViewState.EXPANDING)
                 rv_audio_tracks.visibility = View.GONE else
-                if (newVisibilityState == BottomAudioView.STATE_COLLAPSED) {
+                if (currentState == BottomAudioView2.ViewState.COLLAPSED) {
                     rv_audio_tracks.visibility = View.VISIBLE
                 }
+        }
+    }
+
+    private inner class BottomAudioViewTrackStateChangeListener : BottomAudioView2.OnTrackStateChangeListener {
+        override fun onTrackEnded() {
+            bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getNextItem(currentlySelectedTrackIndex)
+            currentlySelectedTrackIndex = audioTracksAdapter.getNextItemPosition(currentlySelectedTrackIndex)
+            sendMessage(activityMessenger, AudioPlayerService.MESSAGE_NEXT_TRACK, messenger = audioService)
         }
     }
 }
