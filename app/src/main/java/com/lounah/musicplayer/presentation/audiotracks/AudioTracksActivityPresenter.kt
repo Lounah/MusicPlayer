@@ -10,6 +10,10 @@ class AudioTracksActivityPresenter(private var view: AudioTracksActivityView?) {
 
     private lateinit var requestTracksTask: Future<List<AudioTrack>>
 
+    /*
+        Добавил кеш на случай, если захочу сохранять презентер при смене конфигурации
+        пока не захотел
+     */
     private var cachedTracks: List<AudioTrack>? = null
 
     fun detachView() {

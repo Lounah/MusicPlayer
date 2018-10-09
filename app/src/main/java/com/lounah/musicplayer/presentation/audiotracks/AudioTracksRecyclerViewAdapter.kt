@@ -77,8 +77,11 @@ class AudioTracksRecyclerViewAdapter(private val onTrackClickedCallback: OnTrack
                 audioTracks[position].playbackState = PlaybackState.IS_PAUSED
             else audioTracks[position].playbackState = PlaybackState.IS_BEING_PLAYED
         }
-        Log.i("NOTYFY SELECTED", "$position")
-        audioTracks.filterIndexed { index, audioTrack -> index != position }.forEach { it.playbackState = PlaybackState.IDLE }
+
+        // крайний случай, это временно
+        audioTracks
+                .filterIndexed { index, audioTrack -> index != position }
+                .forEach { it.playbackState = PlaybackState.IDLE }
         notifyItemRangeChanged(0, audioTracks.size - 1)
     }
 
