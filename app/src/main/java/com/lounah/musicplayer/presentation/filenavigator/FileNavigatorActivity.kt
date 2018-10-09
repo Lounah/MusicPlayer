@@ -68,6 +68,7 @@ class FileNavigatorActivity : AppCompatActivity() {
                     object : FileContentsAdapter.OnDirectoryChangedListener {
                         override fun onDirectoryChanged(newDir: File) {
                             currentlySelectedDir = newDir
+                            buttonSelect.visibility = View.VISIBLE
                         }
                     })
         }
