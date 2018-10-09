@@ -12,14 +12,12 @@ import com.lounah.musicplayer.R
 import com.lounah.musicplayer.core.audioplayer.AudioPlayer
 import com.lounah.musicplayer.core.audioplayer.AudioPlayerService
 import com.lounah.musicplayer.presentation.model.AudioTrack
-import com.lounah.musicplayer.presentation.uicomponents.BottomAudioView
-import kotlinx.android.synthetic.main.activity_audio_tracks.*
 import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.*
-import android.util.Log
 import com.lounah.musicplayer.presentation.model.PlaybackState
 import com.lounah.musicplayer.presentation.uicomponents.BottomAudioView2
+import kotlinx.android.synthetic.main.activity_audio_tracks.*
 
 class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
 
