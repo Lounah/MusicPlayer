@@ -230,6 +230,9 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
                         bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getNextItem(currentlySelectedTrackIndex)
                     currentlySelectedTrackIndex = audioTracksAdapter.getNextItemPosition(currentlySelectedTrackIndex)
                 }
+                AudioPlayerService.STATE_SEEK_PROCEED -> {
+                    audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
+                }
                 AudioPlayerService.STATE_TRACK_INITIAL -> {
                     bottom_audio_view_activity_tracks.currentTrack = player.track!!
                 }
@@ -289,6 +292,9 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
             bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getNextItem(currentlySelectedTrackIndex)
             currentlySelectedTrackIndex = audioTracksAdapter.getNextItemPosition(currentlySelectedTrackIndex)
             sendMessage(activityMessenger, AudioPlayerService.MESSAGE_NEXT_TRACK, messenger = audioService)
+        }
+        override fun onTimelineChanged(newTimeSec: Int) {
+            sendMessage(activityMessenger, arg = newTimeSec, what = AudioPlayerService.MESSAGE_TIMELINE_CHANGED, messenger = audioService)
         }
     }
 }

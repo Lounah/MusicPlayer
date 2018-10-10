@@ -88,4 +88,8 @@ class AudioPlayer private constructor(context: Context) {
         track = playbackQueue[currentlyPlayingTrackIndex]
         play()
     }
+
+    fun seekTo(newTimeSec: Int) {
+        playbackEngine.seekTo(newTimeSec * 1000L)
+    }
 }

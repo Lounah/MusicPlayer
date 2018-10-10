@@ -50,8 +50,8 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
     constructor(context: Context, attributeSet: AttributeSet?) : this(context, attributeSet, 0)
 
 
-   // private val STUB_ALBUM_COVER_IMAGE_URL = "https://pp.userapi.com/c850136/v850136172/1e129/PP3-5MonY5s.jpg"
-   private val ALBUM_COVER_BITMAP_CACHE_KEY = "ALBUM_COVER_BITMAP_CACHE_KEY"
+    // private val STUB_ALBUM_COVER_IMAGE_URL = "https://pp.userapi.com/c850136/v850136172/1e129/PP3-5MonY5s.jpg"
+    private val ALBUM_COVER_BITMAP_CACHE_KEY = "ALBUM_COVER_BITMAP_CACHE_KEY"
 
     interface OnControlButtonClickListener {
         fun onPlayButtonClicked()
@@ -69,6 +69,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
     interface OnTrackStateChangeListener {
         fun onTrackEnded()
+        fun onTimelineChanged(newTimeSec: Int)
     }
 
     enum class AudioPlaybackState {
@@ -440,6 +441,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
     private lateinit var expandedAddIconRect: Rect
     private lateinit var expandedDotsIconRect: Rect
     private lateinit var albumCoverRect: RectF
+    private lateinit var timelineRect: Rect
 
     private var collapsedNextButtonWasPressed = false
     private var collapsedPauseButtonWasPressed = false
@@ -533,12 +535,14 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
     private val bitmapMemoryCache = BitmapMemoryCache.instance
 
+    private var timelineSeekbarWasTouched = false
+
     init {
 
         if (bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY) == null) {
             albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
             bitmapMemoryCache.putBitmapInCache(ALBUM_COVER_BITMAP_CACHE_KEY, albumCoverBitmap)
-        }else {
+        } else {
             albumCoverBitmap = bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY)!!
         }
         setLayerType(View.LAYER_TYPE_HARDWARE, null)
@@ -554,6 +558,19 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
         setOnTouchListener { v, event ->
             when (event.actionMasked) {
+                MotionEvent.ACTION_MOVE-> {
+                    if (currentViewState == ViewState.EXPANDED) {
+                    when {
+                            isMotionEventInRect(timelineRect, event) -> {
+                                currentTimelineX = event.x
+                                currentPlaybackTime = calculateTimeElapsedBasedOnCurrentX(currentTimelineX)
+                                timelineSeekbarWasTouched = true
+                                invalidate()
+                                return@setOnTouchListener true
+                            }
+                        }
+                    }
+                }
                 MotionEvent.ACTION_DOWN -> {
                     if (currentViewState == ViewState.COLLAPSED) {
                         if (event.y >= height - COLLAPSED_VIEW_HEIGHT) {
@@ -587,7 +604,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                 }
                             }
                         }
-                    } else if (currentViewState != ViewState.COLLAPSING && currentViewState != ViewState.EXPANDING) {
+                    } else if (currentViewState == ViewState.EXPANDED) {
 
                         when {
                             isMotionEventInRect(expandedPreviousButtonRect, event) -> {
@@ -603,6 +620,10 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                 albumCoverWasPressed = true
                                 playSoundEffect(SoundEffectConstants.CLICK)
                                 invalidate()
+                                return@setOnTouchListener true
+                            }
+                            isMotionEventInRect(timelineRect, event) -> {
+
                                 return@setOnTouchListener true
                             }
                             isMotionEventInRect(expandedPauseButtonRect, event) -> {
@@ -701,6 +722,12 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                         invalidate()
                     }
 
+                    if (timelineSeekbarWasTouched) {
+                        timelineSeekbarWasTouched = false
+                        currentTrackStateChangeListener?.onTimelineChanged(calculateTimeElapsedBasedOnCurrentX(currentTimelineX))
+                        invalidate()
+                    }
+
                     if (collapsedPauseButtonWasPressed) {
                         collapsedPauseButtonWasPressed = false
                         controlButtonPaint.alpha = 255
@@ -780,7 +807,9 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                 })
         } else {
             if (::albumCoverBitmap.isInitialized)
-                canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumRectPaint)
+                canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumRectPaint.apply {
+                    alpha = 255
+                })
         }
 
         // TRACK TITLE
@@ -1259,7 +1288,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                 width - pxFromPercentOfWidth(18.3f) - COLLAPSED_BUTTON_PAUSE_SIZE,
                 height - COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM - COLLAPSED_BUTTON_PAUSE_SIZE,
                 width - pxFromPercentOfWidth(18.3f),
-                    height - COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM
+                height - COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM
         )
 
         collapsedNextIconRect = Rect(
@@ -1337,6 +1366,13 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                 height - COLLAPSED_ALBUM_COVER_SIZE.toFloat() - COLLAPSED_ALBUM_COVER_MARGIN,
                 COLLAPSED_ALBUM_COVER_SIZE + COLLAPSED_ALBUM_COVER_MARGIN.toFloat(),
                 height - COLLAPSED_ALBUM_COVER_MARGIN.toFloat()
+        )
+
+        timelineRect = Rect(
+                EXPANDED_TIMELINE_MARGIN_START,
+                height - pxFromPercentOfHeight(31.2f) - 30.dpToPx,
+                width - EXPANDED_TIMELINE_MARGIN_END,
+                height - pxFromPercentOfHeight(31.2f) + 30.dpToPx
         )
 
     }

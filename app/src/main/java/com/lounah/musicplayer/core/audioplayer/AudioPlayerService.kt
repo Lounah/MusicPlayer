@@ -33,13 +33,15 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         const val MESSAGE_PREVIOUS_TRACK = 3
         const val MESSAGE_PAUSE = 4
         const val MESSAGE_PLAY = 5
+        const val MESSAGE_TIMELINE_CHANGED = 6
 
-        const val STATE_PAUSED = 6
-        const val STATE_PLAYING = 7
-        const val STATE_TIMELINE_CHANGED = 8
-        const val STATE_NEXT_TRACK = 9
-        const val STATE_PREV_TRACK = 10
-        const val STATE_TRACK_INITIAL = 11
+        const val STATE_PAUSED = 7
+        const val STATE_PLAYING = 8
+        const val STATE_TIMELINE_CHANGED = 9
+        const val STATE_SEEK_PROCEED = 13
+        const val STATE_NEXT_TRACK = 10
+        const val STATE_PREV_TRACK = 11
+        const val STATE_TRACK_INITIAL = 12
     }
 
     private lateinit var playerNotificationManager: PlayerNotificationManager
@@ -134,29 +136,44 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
 
             if (playbackState == Player.STATE_READY && !playWhenReady) {
+                Log.i("STATE PAUSED", "PAUSED")
                 serviceClients.forEach {
                     sendMessage(it, STATE_PAUSED)
                 }
             }
             if (playbackState == Player.STATE_READY && playWhenReady) {
+                Log.i("STATE PAUSED", "PLAYING")
                 serviceClients.forEach {
                     sendMessage(it, STATE_PLAYING)
                 }
             }
-            if (playbackState == PlaybackStateCompat.STATE_SKIPPING_TO_NEXT) {
-                serviceClients.forEach {
-                    sendMessage(it, STATE_NEXT_TRACK)
+        }
+
+        override fun onPositionDiscontinuity(reason: Int) {
+            when (reason) {
+                Player.DISCONTINUITY_REASON_SEEK -> {
+//                    serviceClients.forEach {
+//                        sendMessage(it, STATE_PLAYING)
+//                    }
+                }
+                Player.DISCONTINUITY_REASON_PERIOD_TRANSITION -> {
+                    Log.i("SEEK", "PERIOD")
+                }
+                Player.DISCONTINUITY_REASON_INTERNAL -> {
+                    Log.i("SEEK", "INTERNAL")
+                }
+                Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> {
+                    serviceClients.forEach {
+                        sendMessage(it, STATE_TRACK_INITIAL)
+                    }
                 }
             }
-            if (playbackState == PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS) {
-                serviceClients.forEach {
-                    sendMessage(it, STATE_PREV_TRACK)
-                }
-            }
-            if (playbackState == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
-                serviceClients.forEach {
-                    sendMessage(it, STATE_TRACK_INITIAL)
-                }
+        }
+
+        override fun onSeekProcessed() {
+            Log.i("ON SEEK PROCEED", "FSDF")
+            serviceClients.forEach {
+                sendMessage(it, STATE_SEEK_PROCEED)
             }
         }
     }
@@ -200,6 +217,10 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
                 MESSAGE_PLAY -> {
                     val index = msg.arg1
                     audioPlayer.playAtIndexInQueue(index)
+                }
+                MESSAGE_TIMELINE_CHANGED -> {
+                    val newTime = msg.arg1
+                    audioPlayer.seekTo(newTime)
                 }
                 else -> super.handleMessage(msg)
             }
