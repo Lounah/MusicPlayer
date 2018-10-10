@@ -68,16 +68,24 @@ class FileNavigatorActivity : AppCompatActivity() {
                     object : FileContentsAdapter.OnDirectoryChangedListener {
                         override fun onDirectoryChanged(newDir: File) {
                             currentlySelectedDir = newDir
-                            buttonSelect.visibility = View.VISIBLE
+                            buttonSelect.animate()
+                                    .translationY(0f).duration = 100L
                         }
                     })
         }
 
         filesView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                if (dy > 20)
-                    buttonSelect.visibility = View.GONE
-                else if (dy < 0) buttonSelect.visibility = View.VISIBLE
+                if (dy > 10) {
+                    buttonSelect
+                            .animate()
+                            .setDuration(100L)
+                            .translationY(buttonSelect.height.toFloat() + ViewUtilities.dpToPx(16, this@FileNavigatorActivity))
+                }
+                else if (dy < 0) {
+                    buttonSelect.animate()
+                            .translationY(0f).duration = 100L
+                }
             }
         })
 
