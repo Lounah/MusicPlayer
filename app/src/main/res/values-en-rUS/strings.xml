@@ -7,4 +7,5 @@
     <string name="select_folder">Choose this dir</string>
     <string name="select_music_folder">"Please, select music folder "</string>
     <string name="audio_files">Your audio</string>
+    <string name="selected_folder_doesnt_have_mp3_files">Selected folder doesnt have mp3 files</string>
 </resources>

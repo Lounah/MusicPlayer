@@ -11,20 +11,21 @@
         style="@style/TextStyle.Large"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="235dp"
         android:text="@string/where_to_search"
         android:textAlignment="center"
+        app:layout_constraintBottom_toTopOf="@id/center_guideline"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="1.0" />
 
     <TextView
         android:id="@+id/tv_fragment_browse_media_where_to_choose_subtitle"
         style="@style/TextStyle.Small.Light"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="7dp"
         android:text="@string/choose_audio_folder"
         android:textAlignment="center"
         app:layout_constraintEnd_toEndOf="parent"
@@ -35,7 +36,7 @@
         android:id="@+id/btn_fragment_browse_media_choose_folder"
         style="@style/TextStyle"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="40dp"
         android:layout_marginTop="24dp"
         android:background="@drawable/all_button_base_background"
         android:paddingBottom="@dimen/app_margin_medium"
@@ -44,8 +45,19 @@
         android:paddingTop="@dimen/app_margin_medium"
         android:text="@string/choose_folder"
         android:textAllCaps="false"
+        android:textAlignment="center"
         android:textColor="@color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_fragment_browse_media_where_to_choose_subtitle" />
+        app:layout_constraintTop_toBottomOf="@+id/tv_fragment_browse_media_where_to_choose_subtitle"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <android.support.constraint.Guideline
+        android:id="@+id/center_guideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.45" />
+
 </android.support.constraint.ConstraintLayout>

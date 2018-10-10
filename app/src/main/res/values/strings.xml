@@ -11,5 +11,6 @@
     <string name="select_folder">Выбрать эту папку</string>
     <string name="select_music_folder">Выберете папку с музыкой</string>
     <string name="audio_files">Аудиозаписи</string>
+    <string name="selected_folder_doesnt_have_mp3_files">В этой папке нет mp3 файлов</string>
 
 </resources>
