@@ -11,6 +11,8 @@
     <color name="blueLight">#4545678f</color>
     <color name="blueDark">#3F8AE0</color>
     <color name="greyOptions">#99a2ad</color>
+    <color name="blueGradientStart">#3f8ae0</color>
+    <color name="blueGradientEnd">#73bef2</color>
 
     <color name="colorPrimary">@color/white</color>
     <color name="colorPrimaryDark">@color/black</color>
