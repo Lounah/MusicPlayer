@@ -13,6 +13,7 @@ import android.support.v4.content.ContextCompat
 import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory
 import android.text.TextPaint
 import android.text.TextUtils
+import android.transition.Transition
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
@@ -20,13 +21,20 @@ import com.lounah.musicplayer.presentation.model.AudioTrack
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.SoundEffectConstants
+import android.view.ViewOutlineProvider
 import android.view.animation.AccelerateDecelerateInterpolator
 import com.lounah.musicplayer.R
 import com.lounah.musicplayer.util.ViewUtilities.drawOnClickShape
 import com.lounah.musicplayer.util.ViewUtilities.isMotionEventInRect
 import kotlin.math.abs
 import android.view.animation.LinearInterpolator
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.request.target.SimpleTarget
+import com.lounah.musicplayer.core.memcache.BitmapMemoryCache
 import com.lounah.musicplayer.util.ViewUtilities
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.util.*
 
 
@@ -40,6 +48,10 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
     constructor(context: Context) : this(context, null, 0)
     constructor(context: Context, attributeSet: AttributeSet?) : this(context, attributeSet, 0)
+
+
+   // private val STUB_ALBUM_COVER_IMAGE_URL = "https://pp.userapi.com/c850136/v850136172/1e129/PP3-5MonY5s.jpg"
+   private val ALBUM_COVER_BITMAP_CACHE_KEY = "ALBUM_COVER_BITMAP_CACHE_KEY"
 
     interface OnControlButtonClickListener {
         fun onPlayButtonClicked()
@@ -119,6 +131,18 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         }
 
     var currentTrackStateChangeListener: OnTrackStateChangeListener? = null
+        set(newValue) {
+            field = newValue
+            invalidate()
+        }
+
+    var isShuffleEnabled = false
+        set(newValue) {
+            field = newValue
+            invalidate()
+        }
+
+    var isRepeatEnabled = false
         set(newValue) {
             field = newValue
             invalidate()
@@ -393,9 +417,13 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         color = DEFAULT_ON_CLICK_SHAPE_COLOR
     }
 
+    private val blurShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+
+    }
+
     private val albumRectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    private var albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
+    private lateinit var albumCoverBitmap: Bitmap
 
 
     private lateinit var collapsedNextIconRect: Rect
@@ -502,12 +530,17 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
             invalidate()
         }
-//
-//    private lateinit var timeAnimator: ValueAnimator
-//    private var timeAnimatorLastAnimatedValue = 0
+
+    private val bitmapMemoryCache = BitmapMemoryCache.instance
 
     init {
 
+        if (bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY) == null) {
+            albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
+            bitmapMemoryCache.putBitmapInCache(ALBUM_COVER_BITMAP_CACHE_KEY, albumCoverBitmap)
+        }else {
+            albumCoverBitmap = bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY)!!
+        }
         setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
         expandAnimator.duration = EXPAND_ANIMATION_DURATION_MS
@@ -531,7 +564,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                     playSoundEffect(SoundEffectConstants.CLICK)
                                     controlButtonClickListener?.onNextButtonClicked()
                                     timelineAnimator.cancel()
-                                  //  timeAnimator.cancel()
+                                    //  timeAnimator.cancel()
                                     invalidate()
                                     return@setOnTouchListener true
                                 }
@@ -562,7 +595,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                 playSoundEffect(SoundEffectConstants.CLICK)
                                 controlButtonClickListener?.onPreviousButtonClicked()
                                 timelineAnimator.cancel()
-                               // timeAnimator.cancel()
+                                // timeAnimator.cancel()
                                 invalidate()
                                 return@setOnTouchListener true
                             }
@@ -593,13 +626,24 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                 playSoundEffect(SoundEffectConstants.CLICK)
                                 controlButtonClickListener?.onNextButtonClicked()
                                 timelineAnimator.cancel()
-                             //   timeAnimator.cancel()
+                                //   timeAnimator.cancel()
                                 invalidate()
                                 return@setOnTouchListener true
                             }
                             isMotionEventInRect(expandedShuffleButtonRect, event) -> {
                                 expandedShuffleButtonWasPressed = true
                                 playSoundEffect(SoundEffectConstants.CLICK)
+                                if (isShuffleEnabled) {
+                                    isShuffleEnabled = false
+                                    expandedShuffleDrawable?.apply {
+                                        colorFilter = PorterDuffColorFilter(ContextCompat.getColor(context, R.color.blue), PorterDuff.Mode.SRC_IN)
+                                    }
+                                } else {
+                                    expandedShuffleDrawable?.apply {
+                                        colorFilter = PorterDuffColorFilter(ContextCompat.getColor(context, R.color.white), PorterDuff.Mode.SRC_IN)
+                                    }
+                                    isShuffleEnabled = true
+                                }
                                 controlButtonClickListener?.onShuffleClicked()
                                 invalidate()
                                 return@setOnTouchListener true
@@ -607,6 +651,17 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                             isMotionEventInRect(expandedRepeatButtonRect, event) -> {
                                 expandedRepeatButtonWasPressed = true
                                 playSoundEffect(SoundEffectConstants.CLICK)
+                                if (isRepeatEnabled) {
+                                    isRepeatEnabled = false
+                                    expandedRepeatDrawable?.apply {
+                                        colorFilter = PorterDuffColorFilter(ContextCompat.getColor(context, R.color.blue), PorterDuff.Mode.SRC_IN)
+                                    }
+                                } else {
+                                    expandedRepeatDrawable?.apply {
+                                        colorFilter = PorterDuffColorFilter(ContextCompat.getColor(context, R.color.white), PorterDuff.Mode.SRC_IN)
+                                    }
+                                    isRepeatEnabled = true
+                                }
                                 controlButtonClickListener?.onRepeatClicked()
                                 invalidate()
                                 return@setOnTouchListener true
@@ -719,11 +774,13 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         }
         // ALBUM COVER
         if (albumCoverWasPressed) {
-            canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumRectPaint.apply {
-                alpha = 175
-            })
+            if (::albumCoverBitmap.isInitialized)
+                canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumRectPaint.apply {
+                    alpha = 175
+                })
         } else {
-            canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, null)
+            if (::albumCoverBitmap.isInitialized)
+                canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumRectPaint)
         }
 
         // TRACK TITLE
@@ -794,33 +851,17 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
         if (currentViewState == ViewState.EXPANDED) {
 
-            if (expandedPreviousButtonWasPressed) {
-                drawOnClickShape(canvas, expandedPreviousButtonRect, context, onClickPaint)
-            }
+            drawPressedButtonStateIfShould(canvas)
 
-            if (expandedNextButtonWasPressed) {
-                drawOnClickShape(canvas, expandedNextButtonRect, context, onClickPaint)
+            if (isShuffleEnabled) {
+                canvas.drawCircle(expandedShuffleButtonRect.exactCenterX(), expandedShuffleButtonRect.exactCenterY(), 18.dpToPx.toFloat(), controlButtonPaint)
             }
-
-            if (expandedRepeatButtonWasPressed) {
-                drawOnClickShape(canvas, expandedRepeatButtonRect, context, onClickPaint)
-            }
-
-            if (expandedShuffleButtonWasPressed) {
-                drawOnClickShape(canvas, expandedShuffleButtonRect, context, onClickPaint)
-            }
-
-            if (expandedDotsButtonWasPressed) {
-                drawOnClickShape(canvas, expandedDotsIconRect, context, onClickPaint)
-            }
-
-            if (expandedAddButtonWasPressed) {
-                drawOnClickShape(canvas, expandedAddIconRect, context, onClickPaint)
-            }
-
             expandedShuffleDrawable?.let {
                 it.bounds = expandedShuffleButtonRect
                 it.draw(canvas)
+            }
+            if (isRepeatEnabled) {
+                canvas.drawCircle(expandedRepeatButtonRect.exactCenterX(), expandedRepeatButtonRect.exactCenterY(), 18.dpToPx.toFloat(), controlButtonPaint)
             }
             expandedRepeatDrawable?.let {
                 it.bounds = expandedRepeatButtonRect
@@ -908,13 +949,40 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
             if (::ellipsizedTrackTitle.isInitialized && ellipsizedTrackTitle.isNotEmpty()) {
                 canvas.drawText(ellipsizedTrackTitle, 0, ellipsizedTrackTitle.length,
-                        EXPANDED_TRACK_TITLE_MARGIN_START.toFloat(),
+                        albumCoverRect.left,
                         height - pxFromPercentOfHeight(41.4f).toFloat(), expandedTrackTitlePaint)
             } else {
                 canvas.drawText(currentTrack.title, expandedTrackTitleLeftBorder,
                         height - pxFromPercentOfHeight(41.4f).toFloat(), expandedTrackTitlePaint)
             }
         }
+    }
+
+    private fun drawPressedButtonStateIfShould(canvas: Canvas) {
+        if (expandedPreviousButtonWasPressed) {
+            drawOnClickShape(canvas, expandedPreviousButtonRect, context, onClickPaint)
+        }
+
+        if (expandedNextButtonWasPressed) {
+            drawOnClickShape(canvas, expandedNextButtonRect, context, onClickPaint)
+        }
+
+        if (expandedRepeatButtonWasPressed) {
+            drawOnClickShape(canvas, expandedRepeatButtonRect, context, onClickPaint)
+        }
+
+        if (expandedShuffleButtonWasPressed) {
+            drawOnClickShape(canvas, expandedShuffleButtonRect, context, onClickPaint)
+        }
+
+        if (expandedDotsButtonWasPressed) {
+            drawOnClickShape(canvas, expandedDotsIconRect, context, onClickPaint)
+        }
+
+        if (expandedAddButtonWasPressed) {
+            drawOnClickShape(canvas, expandedAddIconRect, context, onClickPaint)
+        }
+
     }
 
     private fun initDefaultValues() {
@@ -1118,19 +1186,6 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         }
 
         if (currentPlaybackTime == 0) {
-
-//            timeAnimator = ValueAnimator.ofInt(0, currentTrack.duration)
-//            timeAnimator.interpolator = LinearInterpolator()
-//            timeAnimator.duration = currentTrack.duration * 1000L
-//            timeAnimator.addUpdateListener {
-//                val animatedValue = it.animatedValue as Int
-//                val delta = abs(animatedValue - timeAnimatorLastAnimatedValue)
-//                timeAnimatorLastAnimatedValue = animatedValue
-//                currentPlaybackTime += delta
-//            }
-//
-//            timeAnimator.start()
-
             timelineAnimator = ValueAnimator.ofFloat(0f, abs(width - 2 * EXPANDED_TIMELINE_MARGIN_END.toFloat()))
             timelineAnimator.duration = (currentTrack.duration) * 1000L
             timelineAnimator.interpolator = LinearInterpolator()
@@ -1151,8 +1206,10 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             timelineAnimator.addListener(TimelineAnimatorListener())
 
             if (currentAudioPlaybackState == AudioPlaybackState.PLAYING)
-            timelineAnimator.start()
+                timelineAnimator.start()
         }
+
+        controlButtonPaint.shader = LinearGradient(0f, 0f, 0f, height.toFloat(), ContextCompat.getColor(context, R.color.blueGradientEnd), ContextCompat.getColor(context, R.color.blueGradientStart), Shader.TileMode.CLAMP)
     }
 
     private fun measureTextViews() {
@@ -1178,7 +1235,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         val availableForTitleLeftBorder = EXPANDED_TRACK_TITLE_MARGIN_START.toFloat()
         val availableForTitleRightBorder = width - EXPANDED_TRACK_TITLE_MARGIN_START.toFloat()
 
-        val availableForTitleWidth = availableForTitleRightBorder - availableForTitleLeftBorder
+        val availableForTitleWidth = availableForTitleRightBorder - availableForTitleLeftBorder - 8.dpToPx
 
         if (expandedTrackTitleMeasuredWidth > availableForTitleWidth) {
             ellipsizedTrackTitle = TextUtils.ellipsize(currentTrack.title, expandedTrackTitlePaint, availableForTitleWidth, TextUtils.TruncateAt.END)
@@ -1202,7 +1259,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                 width - pxFromPercentOfWidth(18.3f) - COLLAPSED_BUTTON_PAUSE_SIZE,
                 height - COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM - COLLAPSED_BUTTON_PAUSE_SIZE,
                 width - pxFromPercentOfWidth(18.3f),
-                height - COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM
+                    height - COLLAPSED_BUTTON_PAUSE_MARGIN_BOTTOM
         )
 
         collapsedNextIconRect = Rect(
@@ -1546,9 +1603,6 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         if (::timelineAnimator.isInitialized) {
             timelineAnimator.pause()
         }
-//        if (::timeAnimator.isInitialized && !timeAnimator.isPaused) {
-//            timeAnimator.pause()
-//        }
     }
 
     fun resumeNow() {
@@ -1559,11 +1613,6 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             } else if (!timelineAnimator.isStarted)
                 timelineAnimator.start()
         }
-//        if (::timeAnimator.isInitialized) {
-//            if (timeAnimator.isPaused) {
-//                timeAnimator.resume()
-//            } else if (!timeAnimator.isStarted) timeAnimator.start()
-      //  }
     }
 
     val Int.toTimeText: String
@@ -1592,6 +1641,21 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                 paint
         )
     }
+
+    private fun loadImageFromUrlIntoBitmap(imageUrl: String) {
+        Glide.with(this)
+                .asBitmap()
+                .load(imageUrl)
+                .apply(RequestOptions().override(100, 100).centerCrop())
+                .into(object : SimpleTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: com.bumptech.glide.request.transition.Transition<in Bitmap>?) {
+                        albumCoverBitmap = resource
+                        invalidate()
+//                        mBitmapCanvas = Canvas(mTrackAlbumCoverBitmap)
+                    }
+                })
+    }
+
 
     fun pxFromPercentOfHeight(percent: Float) = (height / 100 * percent).toInt()
     fun pxFromPercentOfWidth(percent: Float) = (width / 100 * percent).toInt()
