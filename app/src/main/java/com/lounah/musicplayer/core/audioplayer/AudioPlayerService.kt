@@ -124,7 +124,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     private inner class AudioBecomingNoisyReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (audioPlayer.playbackEngine.playWhenReady) {
-                audioPlayer.playbackEngine.playWhenReady = false
+                audioPlayer.pause()
             }
         }
     }
