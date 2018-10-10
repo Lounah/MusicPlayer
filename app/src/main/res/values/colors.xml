@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base -->
+    <color name="baseBackgroundColor">#F0F1F2</color>
+    <color name="blue">#4887d2</color>
+    <color name="black">#000000</color>
+    <color name="grey">#909499</color>
+    <color name="greyLight">#1d000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="blueLight">#4545678f</color>
+    <color name="blueDark">#3F8AE0</color>
+    <color name="greyOptions">#99a2ad</color>
+
+    <color name="colorPrimary">@color/white</color>
+    <color name="colorPrimaryDark">@color/black</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="textColorDefault">#2c2d2e</color>
+    <color name="textColorGrey">@color/grey</color>
+</resources>

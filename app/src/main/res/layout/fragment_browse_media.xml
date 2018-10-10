@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/baseBackgroundColor">
+
+    <TextView
+        android:id="@+id/tv_fragment_browse_media_where_to_choose_title"
+        style="@style/TextStyle.Large"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="235dp"
+        android:text="@string/where_to_search"
+        android:textAlignment="center"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_fragment_browse_media_where_to_choose_subtitle"
+        style="@style/TextStyle.Small.Light"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/choose_audio_folder"
+        android:textAlignment="center"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_fragment_browse_media_where_to_choose_title" />
+
+    <Button
+        android:id="@+id/btn_fragment_browse_media_choose_folder"
+        style="@style/TextStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/all_button_base_background"
+        android:paddingBottom="@dimen/app_margin_medium"
+        android:paddingEnd="@dimen/app_margin"
+        android:paddingStart="@dimen/app_margin"
+        android:paddingTop="@dimen/app_margin_medium"
+        android:text="@string/choose_folder"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_fragment_browse_media_where_to_choose_subtitle" />
+</android.support.constraint.ConstraintLayout>
