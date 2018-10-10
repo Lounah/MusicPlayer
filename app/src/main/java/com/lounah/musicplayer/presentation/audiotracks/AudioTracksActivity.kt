@@ -109,6 +109,9 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         audioTracksAdapter.updateDataSet(trackList)
         if (currentlySelectedTrackIndex == -1) {
             player.playbackQueue = trackList
+            bottom_audio_view_activity_tracks.currentTrack = trackList[0]
+            currentlySelectedTrackIndex = 0
+            currentlySelectedTrackState = PlaybackState.IDLE
         }
     }
 
@@ -132,9 +135,9 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
 
         audioTracksAdapter = AudioTracksRecyclerViewAdapter(object : AudioTracksRecyclerViewAdapter.OnTrackClickedCallback {
             override fun onTrackClicked(track: AudioTrack, position: Int) {
-                if (bottom_audio_view_activity_tracks.visibility == View.GONE) {
-                    bottom_audio_view_activity_tracks.visibility = View.VISIBLE
-                }
+//                if (bottom_audio_view_activity_tracks.visibility == View.GONE) {
+//                    bottom_audio_view_activity_tracks.visibility = View.VISIBLE
+//                }
                 if (position != currentlySelectedTrackIndex) {
                     bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.audioTracks[position]
                 }
@@ -170,8 +173,8 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
     }
 
     private fun initBottomAudioView() {
-        if (currentlySelectedTrackIndex == -1)
-            bottom_audio_view_activity_tracks.visibility = View.GONE
+        //if (currentlySelectedTrackIndex == -1)
+          //  bottom_audio_view_activity_tracks.visibility = View.GONE
         bottom_audio_view_activity_tracks.controlButtonClickListener = BottomViewControlButtonsListener()
         bottom_audio_view_activity_tracks.currentTrackStateChangeListener = BottomAudioViewTrackStateChangeListener()
         bottom_audio_view_activity_tracks.viewStateChangeListener = BottomAudioViewStateChangeListener()
