@@ -15,6 +15,7 @@ import com.lounah.musicplayer.presentation.model.AudioTrack
 import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.*
+import android.util.Log
 import com.lounah.musicplayer.presentation.model.PlaybackState
 import com.lounah.musicplayer.presentation.uicomponents.BottomAudioView2
 import kotlinx.android.synthetic.main.activity_audio_tracks.*
@@ -134,7 +135,9 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
                 if (bottom_audio_view_activity_tracks.visibility == View.GONE) {
                     bottom_audio_view_activity_tracks.visibility = View.VISIBLE
                 }
-                bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.audioTracks[position]
+                if (position != currentlySelectedTrackIndex) {
+                    bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.audioTracks[position]
+                }
                 currentlySelectedTrackIndex = position
 
                 when (audioTracksAdapter.audioTracks[currentlySelectedTrackIndex].playbackState) {
@@ -187,21 +190,12 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         startService(startMusicServiceIntent)
     }
 
-    override fun onStop() {
-        super.onStop()
-        if (serviceWasBound) {
-            unbindService(audioServiceConnection)
-            serviceWasBound = false
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         if (currentlySelectedTrackIndex != -1) {
             audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
             audioTracksAdapter.audioTracks[currentlySelectedTrackIndex].playbackState = currentlySelectedTrackState
         }
-        audioTracksAdapter.notifyDataSetChanged()
     }
 
     private fun sendMessage(replyTo: Messenger, what: Int, arg: Int = 0, messenger: Messenger?, obj: Any? = null) {

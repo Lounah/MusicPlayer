@@ -78,10 +78,6 @@ class AudioTracksRecyclerViewAdapter(private val onTrackClickedCallback: OnTrack
             else audioTracks[position].playbackState = PlaybackState.IS_BEING_PLAYED
         }
 
-        // крайний случай, это временно
-        audioTracks
-                .filterIndexed { index, audioTrack -> index != position }
-                .forEach { it.playbackState = PlaybackState.IDLE }
         notifyItemRangeChanged(0, audioTracks.size - 1)
     }
 

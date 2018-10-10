@@ -5,6 +5,8 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Resources
 import android.graphics.*
+import android.os.Handler
+import android.os.Looper
 import android.os.Parcel
 import android.os.Parcelable
 import android.support.v4.content.ContextCompat
@@ -25,6 +27,7 @@ import com.lounah.musicplayer.util.ViewUtilities.isMotionEventInRect
 import kotlin.math.abs
 import android.view.animation.LinearInterpolator
 import com.lounah.musicplayer.util.ViewUtilities
+import java.util.*
 
 
 /*
@@ -88,7 +91,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             invalidate()
         }
 
-    var currentAudioPlaybackState: AudioPlaybackState = AudioPlaybackState.IDLE
+    var currentAudioPlaybackState = AudioPlaybackState.IDLE
         set(newValue) {
             field = newValue
             invalidate()
@@ -442,6 +445,10 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
     private lateinit var timelineAnimator: ValueAnimator
     private var timeLineAnimationLastAnimatedValue = 0f
     private var currentTimelineX: Float = 0f
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     private var albumCoverCenterXDx = 0f
     private var albumCoverCenterYDy = 0f
@@ -492,8 +499,12 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                     field = newValue
                 }
             }
+
             invalidate()
         }
+//
+//    private lateinit var timeAnimator: ValueAnimator
+//    private var timeAnimatorLastAnimatedValue = 0
 
     init {
 
@@ -520,6 +531,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                     playSoundEffect(SoundEffectConstants.CLICK)
                                     controlButtonClickListener?.onNextButtonClicked()
                                     timelineAnimator.cancel()
+                                  //  timeAnimator.cancel()
                                     invalidate()
                                     return@setOnTouchListener true
                                 }
@@ -550,6 +562,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                 playSoundEffect(SoundEffectConstants.CLICK)
                                 controlButtonClickListener?.onPreviousButtonClicked()
                                 timelineAnimator.cancel()
+                               // timeAnimator.cancel()
                                 invalidate()
                                 return@setOnTouchListener true
                             }
@@ -580,6 +593,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
                                 playSoundEffect(SoundEffectConstants.CLICK)
                                 controlButtonClickListener?.onNextButtonClicked()
                                 timelineAnimator.cancel()
+                             //   timeAnimator.cancel()
                                 invalidate()
                                 return@setOnTouchListener true
                             }
@@ -614,7 +628,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
                         }
 
-                        if (event.y <= EXPANDED_ALBUM_COVER_SIZE + EXPANDED_ALBUM_COVER_MARGIN_BOTTOM) {
+                        if (event.y <= EXPANDED_ALBUM_COVER_SIZE) {
                             collapseAnimator.start()
                             playSoundEffect(SoundEffectConstants.CLICK)
                             return@setOnTouchListener true
@@ -1104,7 +1118,20 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         }
 
         if (currentPlaybackTime == 0) {
-            timelineAnimator = ValueAnimator.ofFloat(0f, abs(width - 2 * EXPANDED_TIMELINE_MARGIN_END.toFloat()).toFloat())
+
+//            timeAnimator = ValueAnimator.ofInt(0, currentTrack.duration)
+//            timeAnimator.interpolator = LinearInterpolator()
+//            timeAnimator.duration = currentTrack.duration * 1000L
+//            timeAnimator.addUpdateListener {
+//                val animatedValue = it.animatedValue as Int
+//                val delta = abs(animatedValue - timeAnimatorLastAnimatedValue)
+//                timeAnimatorLastAnimatedValue = animatedValue
+//                currentPlaybackTime += delta
+//            }
+//
+//            timeAnimator.start()
+
+            timelineAnimator = ValueAnimator.ofFloat(0f, abs(width - 2 * EXPANDED_TIMELINE_MARGIN_END.toFloat()))
             timelineAnimator.duration = (currentTrack.duration) * 1000L
             timelineAnimator.interpolator = LinearInterpolator()
             timelineAnimator.addUpdateListener(TimelineValueAnimatorListener())
@@ -1123,6 +1150,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
             timelineAnimator.addUpdateListener(TimelineValueAnimatorListener())
             timelineAnimator.addListener(TimelineAnimatorListener())
 
+            if (currentAudioPlaybackState == AudioPlaybackState.PLAYING)
             timelineAnimator.start()
         }
     }
@@ -1515,8 +1543,12 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
 
     fun pauseNow() {
         currentAudioPlaybackState = AudioPlaybackState.PAUSED
-        if (::timelineAnimator.isInitialized)
+        if (::timelineAnimator.isInitialized) {
             timelineAnimator.pause()
+        }
+//        if (::timeAnimator.isInitialized && !timeAnimator.isPaused) {
+//            timeAnimator.pause()
+//        }
     }
 
     fun resumeNow() {
@@ -1524,8 +1556,14 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         if (::timelineAnimator.isInitialized) {
             if (timelineAnimator.isPaused) {
                 timelineAnimator.resume()
-            } else timelineAnimator.start()
+            } else if (!timelineAnimator.isStarted)
+                timelineAnimator.start()
         }
+//        if (::timeAnimator.isInitialized) {
+//            if (timeAnimator.isPaused) {
+//                timeAnimator.resume()
+//            } else if (!timeAnimator.isStarted) timeAnimator.start()
+      //  }
     }
 
     val Int.toTimeText: String
@@ -1545,7 +1583,7 @@ class BottomAudioView2 constructor(context: Context, attributeSet: AttributeSet?
         get() = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, this, context.resources.displayMetrics).toInt()
 
     fun Canvas.drawTopRoundRect(left: Float, top: Float, right: Float, bottom: Float, paint: Paint, radius: Float) {
-        drawRoundRect(left, top, right, bottom, radius, radius, paint)
+        drawRoundRect(RectF(left, top, right, bottom), radius, radius, paint)
         drawRect(
                 left,
                 top + radius,
