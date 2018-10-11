@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
+import android.support.v7.view.ContextThemeWrapper
 import android.support.v7.widget.DividerItemDecoration
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
@@ -96,12 +97,14 @@ class FileNavigatorActivity : AppCompatActivity() {
         val DEFAULT_MARGIN_16_DP = ViewUtilities.dpToPx(16, this)
         val DEFAULT_MARGIN_8_DP = ViewUtilities.dpToPx(8, this)
 
-        buttonSelect = Button(this)
+        buttonSelect = Button(ContextThemeWrapper(this, R.style.TextStyle), null, R.style.TextStyle)
 
         buttonSelect.text = resources.getString(R.string.select_folder)
 
+        buttonSelect.transformationMethod = null
+
         val buttonSelectLayoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
+                ViewUtilities.dpToPx(40, this),
                 Gravity.BOTTOM or Gravity.CENTER)
 
         buttonSelectLayoutParams.setMargins(DEFAULT_MARGIN_16_DP,
