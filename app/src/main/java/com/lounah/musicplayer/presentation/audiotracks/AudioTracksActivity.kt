@@ -17,7 +17,7 @@ import android.content.ServiceConnection
 import android.os.*
 import android.widget.Toast
 import com.lounah.musicplayer.presentation.model.PlaybackState
-import com.lounah.musicplayer.presentation.uicomponents.BottomAudioView2
+import com.lounah.musicplayer.presentation.uicomponents.BottomAudioView
 import kotlinx.android.synthetic.main.activity_audio_tracks.*
 
 class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
@@ -252,7 +252,7 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         }
     }
 
-    private inner class BottomViewControlButtonsListener : BottomAudioView2.OnControlButtonClickListener {
+    private inner class BottomViewControlButtonsListener : BottomAudioView.OnControlButtonClickListener {
         override fun onPlayButtonClicked() {
             sendMessage(activityMessenger,
                     AudioPlayerService.MESSAGE_PLAY,
@@ -289,17 +289,17 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         }
     }
 
-    private inner class BottomAudioViewStateChangeListener : BottomAudioView2.OnViewStateChangeListener {
-        override fun onViewStateChanged(currentState: BottomAudioView2.ViewState) {
-            if (currentState == BottomAudioView2.ViewState.EXPANDING)
+    private inner class BottomAudioViewStateChangeListener : BottomAudioView.OnViewStateChangeListener {
+        override fun onViewStateChanged(currentState: BottomAudioView.ViewState) {
+            if (currentState == BottomAudioView.ViewState.EXPANDING)
                 rv_audio_tracks.visibility = View.GONE else
-                if (currentState == BottomAudioView2.ViewState.COLLAPSED) {
+                if (currentState == BottomAudioView.ViewState.COLLAPSED) {
                     rv_audio_tracks.visibility = View.VISIBLE
                 }
         }
     }
 
-    private inner class BottomAudioViewTrackStateChangeListener : BottomAudioView2.OnTrackStateChangeListener {
+    private inner class BottomAudioViewTrackStateChangeListener : BottomAudioView.OnTrackStateChangeListener {
         override fun onTrackEnded() {
             bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.getNextItem(currentlySelectedTrackIndex)
             currentlySelectedTrackIndex = audioTracksAdapter.getNextItemPosition(currentlySelectedTrackIndex)
