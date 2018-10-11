@@ -15,7 +15,7 @@ import com.lounah.musicplayer.presentation.model.AudioTrack
 import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.*
-import android.util.Log
+import android.widget.Toast
 import com.lounah.musicplayer.presentation.model.PlaybackState
 import com.lounah.musicplayer.presentation.uicomponents.BottomAudioView2
 import kotlinx.android.synthetic.main.activity_audio_tracks.*
@@ -62,11 +62,13 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         }
     }
 
+    private lateinit var absolutePath: String
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_audio_tracks)
 
-        val absolutePath = intent.getStringExtra(AUDIO_FOLDER_ABSOLUTE_PATH)
+        absolutePath = intent.getStringExtra(AUDIO_FOLDER_ABSOLUTE_PATH)
         startMusicServiceIntent = Intent(this, AudioPlayerService::class.java).apply {
             putExtra(AUDIO_FOLDER_ABSOLUTE_PATH, absolutePath)
         }
@@ -106,12 +108,18 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
     }
 
     override fun renderTracks(trackList: List<AudioTrack>) {
-        audioTracksAdapter.updateDataSet(trackList)
-        if (currentlySelectedTrackIndex == -1) {
-            player.playbackQueue = trackList
-            bottom_audio_view_activity_tracks.currentTrack = trackList[0]
-            currentlySelectedTrackIndex = 0
-            currentlySelectedTrackState = PlaybackState.IDLE
+        if (trackList.isEmpty()) {
+            tv_audio_tracks_empty_state.visibility = View.VISIBLE
+            rv_audio_tracks.visibility = View.GONE
+            bottom_audio_view_activity_tracks.visibility = View.GONE
+        } else {
+            audioTracksAdapter.updateDataSet(trackList)
+            if (currentlySelectedTrackIndex == -1) {
+                player.playbackQueue = trackList
+                bottom_audio_view_activity_tracks.currentTrack = trackList[0]
+                currentlySelectedTrackIndex = 0
+                currentlySelectedTrackState = PlaybackState.IDLE
+            }
         }
     }
 
@@ -135,9 +143,7 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
 
         audioTracksAdapter = AudioTracksRecyclerViewAdapter(object : AudioTracksRecyclerViewAdapter.OnTrackClickedCallback {
             override fun onTrackClicked(track: AudioTrack, position: Int) {
-//                if (bottom_audio_view_activity_tracks.visibility == View.GONE) {
-//                    bottom_audio_view_activity_tracks.visibility = View.VISIBLE
-//                }
+
                 if (position != currentlySelectedTrackIndex) {
                     bottom_audio_view_activity_tracks.currentTrack = audioTracksAdapter.audioTracks[position]
                 }
@@ -173,8 +179,6 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
     }
 
     private fun initBottomAudioView() {
-        //if (currentlySelectedTrackIndex == -1)
-          //  bottom_audio_view_activity_tracks.visibility = View.GONE
         bottom_audio_view_activity_tracks.controlButtonClickListener = BottomViewControlButtonsListener()
         bottom_audio_view_activity_tracks.currentTrackStateChangeListener = BottomAudioViewTrackStateChangeListener()
         bottom_audio_view_activity_tracks.viewStateChangeListener = BottomAudioViewStateChangeListener()
@@ -191,6 +195,14 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         val intent = Intent(this, AudioPlayerService::class.java)
         bindService(intent, audioServiceConnection, Context.BIND_AUTO_CREATE)
         startService(startMusicServiceIntent)
+    }
+
+    override fun onStop() {
+        super.onStop()
+//        if (serviceWasBound) {
+//            unbindService(audioServiceConnection)
+//            serviceWasBound = false
+//        }
     }
 
     override fun onResume() {
@@ -265,15 +277,15 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
         }
 
         override fun onShuffleClicked() {
-            // No op
+            Toast.makeText(this@AudioTracksActivity, R.string.not_supported_yet, Toast.LENGTH_SHORT).show()
         }
 
         override fun onRepeatClicked() {
-            // No op
+            Toast.makeText(this@AudioTracksActivity, R.string.not_supported_yet, Toast.LENGTH_SHORT).show()
         }
 
         override fun onShowAdditionalActionsClicked() {
-            // No op
+            Toast.makeText(this@AudioTracksActivity, R.string.not_supported_yet, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -293,7 +305,10 @@ class AudioTracksActivity : AppCompatActivity(), AudioTracksActivityView {
             currentlySelectedTrackIndex = audioTracksAdapter.getNextItemPosition(currentlySelectedTrackIndex)
             sendMessage(activityMessenger, AudioPlayerService.MESSAGE_NEXT_TRACK, messenger = audioService)
         }
+
         override fun onTimelineChanged(newTimeSec: Int) {
+            if (audioTracksAdapter.audioTracks[currentlySelectedTrackIndex].playbackState == PlaybackState.IDLE)
+                audioTracksAdapter.notifyItemSelected(currentlySelectedTrackIndex)
             sendMessage(activityMessenger, arg = newTimeSec, what = AudioPlayerService.MESSAGE_TIMELINE_CHANGED, messenger = audioService)
         }
     }

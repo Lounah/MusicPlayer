@@ -78,7 +78,10 @@ class AudioTracksRecyclerViewAdapter(private val onTrackClickedCallback: OnTrack
             else audioTracks[position].playbackState = PlaybackState.IS_BEING_PLAYED
         }
 
-        notifyItemRangeChanged(0, audioTracks.size - 1)
+        if (lastPlayedIndex != -1) {
+            notifyItemChanged(lastPlayedIndex)
+        }
+        notifyItemChanged(position)
     }
 
     interface OnTrackClickedCallback {
