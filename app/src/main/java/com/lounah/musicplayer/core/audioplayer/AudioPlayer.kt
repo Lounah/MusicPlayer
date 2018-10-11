@@ -90,6 +90,11 @@ class AudioPlayer private constructor(context: Context) {
     }
 
     fun seekTo(newTimeSec: Int) {
+        if (currentlyPlayingTrackIndex == -1) {
+            track = playbackQueue[0]
+            currentlyPlayingTrackIndex = 0
+            playbackEngine.playWhenReady = true
+        }
         playbackEngine.seekTo(newTimeSec * 1000L)
     }
 }
