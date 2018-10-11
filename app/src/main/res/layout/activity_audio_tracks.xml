@@ -35,7 +35,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/toolbar_activity_tracks" />
 
-    <com.lounah.musicplayer.presentation.uicomponents.BottomAudioView2
+    <com.lounah.musicplayer.presentation.uicomponents.BottomAudioView
         android:id="@+id/bottom_audio_view_activity_tracks"
         android:layout_width="match_parent"
         android:layout_height="0dp"
