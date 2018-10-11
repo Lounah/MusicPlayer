@@ -18,8 +18,6 @@ class AudioPlayer private constructor(context: Context) {
     private val trackSelector = DefaultTrackSelector()
     private val bandwidthMeter = DefaultBandwidthMeter()
 
-    private var currentlyPlayingTrackIndex = -1
-
     var dataSourceFactory: DefaultDataSourceFactory
 
     var playbackEngine: ExoPlayer
@@ -37,6 +35,11 @@ class AudioPlayer private constructor(context: Context) {
         }
 
     var isPaused = false
+
+    var currentlyPlayingTrackIndex = -1
+
+    var currentPlaybackTime = 0
+        get() = playbackEngine.currentPeriodIndex
 
     init {
         dataSourceFactory = DefaultDataSourceFactory(context,
