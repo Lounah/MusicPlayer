@@ -13,13 +13,8 @@ import com.lounah.musicplayer.R
 import com.lounah.musicplayer.presentation.model.AudioTrack
 import com.lounah.musicplayer.util.ViewUtilities
 import android.util.TypedValue
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions
-import com.bumptech.glide.request.target.SimpleTarget
 import com.lounah.musicplayer.core.memcache.BitmapMemoryCache
 import com.lounah.musicplayer.presentation.model.PlaybackState
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 
 
 class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSet?, defStyleRes: Int = 0)
@@ -36,6 +31,8 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     var currentTrack: AudioTrack? = AudioTrack()
         set(newValue) {
             field = newValue
+            ellipsizedTrackTitle = ""
+            ellipsizedTrackBand = ""
             invalidate()
         }
 
@@ -78,8 +75,8 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     private var trackTitleMeasuredWidth = 0f
     private var trackBandMeasuredWidth = 0f
 
-    private lateinit var ellipsizedTrackTitle: CharSequence
-    private lateinit var ellipsizedTrackBand: CharSequence
+    private var ellipsizedTrackTitle: CharSequence = ""
+    private var ellipsizedTrackBand: CharSequence = ""
 
     init {
 
@@ -104,9 +101,6 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
         val outValue = TypedValue()
         getContext().theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
         setBackgroundResource(outValue.resourceId)
-
-      //  albumCoverBitmap = compressBitmap(albumCoverBitmap)
-
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -141,7 +135,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
         currentTrack?.let {
 
             // BAND
-            if (::ellipsizedTrackBand.isInitialized && ellipsizedTrackBand.isNotEmpty()) {
+            if (ellipsizedTrackBand != "") {
                 canvas.drawText(ellipsizedTrackBand, 0, ellipsizedTrackBand.length, DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
                         height / 2f + DEFAULT_TRACK_TITLE_SIZE, bandTextPaint)
             } else {
@@ -151,7 +145,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
             }
 
             // TITLE
-            if (::ellipsizedTrackTitle.isInitialized && ellipsizedTrackTitle.isNotEmpty()) {
+            if (ellipsizedTrackTitle != "") {
                 canvas.drawText(ellipsizedTrackTitle, 0, ellipsizedTrackTitle.length, DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
                         height / 2f - (DEFAULT_TRACK_TITLE_SIZE - DEFAULT_TRACK_BAND_TEXT_SIZE), titleTextPaint)
             } else {
@@ -215,9 +209,8 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
             val availableForBandWidth = availableForBandRightBorder - availableForBandLeftBorder
 
-            if (trackBandMeasuredWidth > availableForBandWidth) {
                 ellipsizedTrackBand = TextUtils.ellipsize(currentTrack!!.band, bandTextPaint, availableForBandWidth, TextUtils.TruncateAt.END)
-            }
+
         }
 
         if (trackTitleMeasuredWidth == 0f) {
@@ -228,9 +221,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
             val availableForTitleWidth = availableForTitleRightBorder - availableForTitleLeftBorder
 
-            if (trackTitleMeasuredWidth > availableForTitleWidth) {
-                ellipsizedTrackTitle = TextUtils.ellipsize(currentTrack!!.title, titleTextPaint, availableForTitleWidth.toFloat(), TextUtils.TruncateAt.END)
-            }
+                ellipsizedTrackTitle = TextUtils.ellipsize(currentTrack!!.title, titleTextPaint, availableForTitleWidth, TextUtils.TruncateAt.END)
         }
     }
 
@@ -309,25 +300,5 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
                 }
             }
         }
-    }
-
-//    private fun loadImageFromUrlIntoBitmap(imageUrl: String) {
-//        Glide.with(this)
-//                .asBitmap()
-//                .load(imageUrl)
-//                .apply(RequestOptions().override(100, 100).centerCrop())
-//                .into(object : SimpleTarget<Bitmap>() {
-//                    override fun onResourceReady(resource: Bitmap, transition: com.bumptech.glide.request.transition.Transition<in Bitmap>?) {
-//                        albumCoverBitmap = resource
-//                        invalidate()
-////                        mBitmapCanvas = Canvas(mTrackAlbumCoverBitmap)
-//                    }
-//                })
-//    }
-
-    private fun compressBitmap(input: Bitmap): Bitmap {
-        val out = ByteArrayOutputStream()
-        input.compress(Bitmap.CompressFormat.PNG, 70, out)
-        return BitmapFactory.decodeStream( ByteArrayInputStream(out.toByteArray()))
     }
 }
