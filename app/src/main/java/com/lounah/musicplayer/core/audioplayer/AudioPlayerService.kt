@@ -134,15 +134,13 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     // TODO: REQUEST AUDIO FOCUS
     private inner class PlayerEventListener : Player.EventListener {
         override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
-
             if (playbackState == Player.STATE_READY && !playWhenReady) {
-                Log.i("STATE PAUSED", "PAUSED")
                 serviceClients.forEach {
                     sendMessage(it, STATE_PAUSED)
                 }
+                audioPlayer.isPaused = true
             }
             if (playbackState == Player.STATE_READY && playWhenReady) {
-                Log.i("STATE PAUSED", "PLAYING")
                 serviceClients.forEach {
                     sendMessage(it, STATE_PLAYING)
                 }
@@ -151,17 +149,6 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
 
         override fun onPositionDiscontinuity(reason: Int) {
             when (reason) {
-                Player.DISCONTINUITY_REASON_SEEK -> {
-//                    serviceClients.forEach {
-//                        sendMessage(it, STATE_PLAYING)
-//                    }
-                }
-                Player.DISCONTINUITY_REASON_PERIOD_TRANSITION -> {
-                    Log.i("SEEK", "PERIOD")
-                }
-                Player.DISCONTINUITY_REASON_INTERNAL -> {
-                    Log.i("SEEK", "INTERNAL")
-                }
                 Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> {
                     serviceClients.forEach {
                         sendMessage(it, STATE_TRACK_INITIAL)
@@ -171,7 +158,6 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         }
 
         override fun onSeekProcessed() {
-            Log.i("ON SEEK PROCEED", "FSDF")
             serviceClients.forEach {
                 sendMessage(it, STATE_SEEK_PROCEED)
             }
