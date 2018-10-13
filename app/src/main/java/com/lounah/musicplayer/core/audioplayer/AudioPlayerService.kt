@@ -36,10 +36,11 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
 
         const val STATE_PAUSED = 7
         const val STATE_PLAYING = 8
-        const val STATE_ENDED = 14
+        const val NOTIFICATION_CANCELLED = 14
         const val STATE_SEEK_PROCEED = 13
         const val STATE_NEXT_TRACK = 10
         const val STATE_TRACK_INITIAL = 12
+        const val STATE_TRACK_ENDED = 15
     }
 
     private lateinit var playerNotificationManager: PlayerNotificationManager
@@ -53,9 +54,11 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
     private val playerEventListener = PlayerEventListener()
 
     private lateinit var messenger: Messenger
-    private val serviceClients = mutableListOf<Messenger>()
+    private var serviceClient: Messenger? = null
 
     private var playbackFolderAbsolutePath: String = ""
+
+    private var audioFocusResult: Int = -1
 
     override fun onCreate() {
         super.onCreate()
@@ -101,9 +104,15 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_GAIN -> audioPlayer.playbackEngine.playWhenReady = true
-            AudioManager.AUDIOFOCUS_LOSS -> audioPlayer.playbackEngine.playWhenReady = false
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> audioPlayer.playbackEngine.playWhenReady = false
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                audioPlayer.playbackEngine.playWhenReady = true
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                audioPlayer.playbackEngine.playWhenReady = false
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                audioPlayer.playbackEngine.playWhenReady = false
+            }
         }
     }
 
@@ -117,6 +126,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         unregisterReceiver(audioBecomingNoisy)
         mediaSession.release()
         audioPlayer.stop()
+        audioManager.abandonAudioFocus(this)
         mediaSessionConnector.setPlayer(null, null)
         playerNotificationManager.setPlayer(null)
         audioPlayer.playbackEngine.removeListener(playerEventListener)
@@ -130,23 +140,33 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         }
     }
 
-    // TODO: REQUEST AUDIO FOCUS
     private inner class PlayerEventListener : Player.EventListener {
         override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
+            if (::audioManager.isInitialized) {
+                audioFocusResult = audioManager.requestAudioFocus(
+                        this@AudioPlayerService,
+                        AudioManager.STREAM_MUSIC,
+                        AudioManager.AUDIOFOCUS_GAIN)
+            }
             if (playbackState == Player.STATE_READY && !playWhenReady) {
-                serviceClients.forEach {
+                serviceClient?.let {
                     sendMessage(it, STATE_PAUSED)
                 }
                 audioPlayer.isPaused = true
             }
-            if (playbackState == Player.STATE_READY && playWhenReady) {
-                serviceClients.forEach {
+            if (playbackState == Player.STATE_READY && playWhenReady && audioFocusResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                serviceClient?.let {
                     sendMessage(it, STATE_PLAYING)
                 }
             }
             if (playbackState == Player.TIMELINE_CHANGE_REASON_RESET) {
-                serviceClients.forEach {
-                    sendMessage(it, STATE_ENDED)
+                serviceClient?.let {
+                    sendMessage(it, NOTIFICATION_CANCELLED)
+                }
+            }
+            if (playbackState == Player.STATE_ENDED) {
+                serviceClient?.let {
+                    sendMessage(it, STATE_TRACK_ENDED)
                 }
             }
         }
@@ -154,7 +174,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         override fun onPositionDiscontinuity(reason: Int) {
             when (reason) {
                 Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> {
-                    serviceClients.forEach {
+                    serviceClient?.let {
                         sendMessage(it, STATE_TRACK_INITIAL)
                     }
                 }
@@ -162,7 +182,7 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         }
 
         override fun onSeekProcessed() {
-            serviceClients.forEach {
+            serviceClient?.let {
                 sendMessage(it, STATE_SEEK_PROCEED)
             }
         }
@@ -180,11 +200,8 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
         override fun createCurrentContentIntent(player: Player): PendingIntent? {
             val startAudioTracksActivityIntent = Intent(baseContext, AudioTracksActivity::class.java).apply {
                 putExtra(AudioTracksActivity.AUDIO_FOLDER_ABSOLUTE_PATH, playbackFolderAbsolutePath)
-//                putExtra(AudioTracksActivity.PENDING_INTENT_CURRENTLY_SELECTED_TRACK_INDEX, audioPlayer.currentlyPlayingTrackIndex)
-//                putExtra(AudioTracksActivity.PENDING_INTENT_CURRENTLY_SELECTED_TRACK_STATE, audioPlayer.track?.playbackState)
-//                putExtra(AudioTracksActivity.PENDING_INTENT_CURRENTLY_SELECTED_TRACK_PLAYBACK_TIME, audioPlayer.currentPlaybackTime)
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
             }
-//            startAudioTracksActivityIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
 
             return PendingIntent.getActivity(baseContext, 0, startAudioTracksActivityIntent, PendingIntent.FLAG_UPDATE_CURRENT)
         }
@@ -197,10 +214,10 @@ class AudioPlayerService : Service(), AudioManager.OnAudioFocusChangeListener {
             audioPlayerService?.let {
                 when (msg.what) {
                     MESSAGE_REGISTER_CLIENT -> {
-                        it.serviceClients += msg.replyTo
+                        it.serviceClient = msg.replyTo
                     }
                     MESSAGE_UNREGISTER_CLIENT -> {
-                        it.serviceClients -= msg.replyTo
+                        it.serviceClient = null
                     }
                     MESSAGE_NEXT_TRACK -> {
                         it.audioPlayer.playNextInQueue()
