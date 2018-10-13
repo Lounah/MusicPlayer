@@ -18,8 +18,6 @@ class AudioPlayer private constructor(context: Context) {
     private val trackSelector = DefaultTrackSelector()
     private val bandwidthMeter = DefaultBandwidthMeter()
 
-    private var currentlyPlayingTrackIndex = -1
-
     var dataSourceFactory: DefaultDataSourceFactory
 
     var playbackEngine: ExoPlayer
@@ -38,12 +36,15 @@ class AudioPlayer private constructor(context: Context) {
 
     var isPaused = false
 
+    var currentlyPlayingTrackIndex = -1
+
     init {
         dataSourceFactory = DefaultDataSourceFactory(context,
                 Util.getUserAgent(context, "MusicPlayer"),
                 bandwidthMeter)
 
         playbackEngine = ExoPlayerFactory.newSimpleInstance(context, trackSelector)
+
     }
 
     fun pause() {
@@ -70,6 +71,9 @@ class AudioPlayer private constructor(context: Context) {
     }
 
     fun playNextInQueue() {
+        if (currentlyPlayingTrackIndex == -1) {
+            currentlyPlayingTrackIndex = 0
+        }
         if (currentlyPlayingTrackIndex < playbackQueue.size - 1) {
             currentlyPlayingTrackIndex++
         } else {
@@ -87,5 +91,14 @@ class AudioPlayer private constructor(context: Context) {
         }
         track = playbackQueue[currentlyPlayingTrackIndex]
         play()
+    }
+
+    fun seekTo(newTimeSec: Int) {
+        if (currentlyPlayingTrackIndex == -1) {
+            track = playbackQueue[0]
+            currentlyPlayingTrackIndex = 0
+            playbackEngine.playWhenReady = true
+        }
+        playbackEngine.seekTo(newTimeSec * 1000L)
     }
 }

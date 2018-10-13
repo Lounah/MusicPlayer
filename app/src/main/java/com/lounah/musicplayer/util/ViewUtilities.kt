@@ -10,6 +10,17 @@ import android.util.DisplayMetrics
 import android.util.TypedValue
 import android.view.MotionEvent
 import kotlin.math.abs
+import java.nio.file.Files.delete
+import android.graphics.Bitmap
+import android.os.Environment
+import java.nio.channels.FileChannel.MapMode.READ_WRITE
+import java.io.File.separator
+import android.os.Environment.getExternalStorageDirectory
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.IOException
+import java.io.RandomAccessFile
+import java.nio.channels.FileChannel
 
 
 object ViewUtilities {

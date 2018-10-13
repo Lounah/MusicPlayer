@@ -10,6 +10,8 @@ class AudioTracksActivityPresenter(private var view: AudioTracksActivityView?) {
 
     private lateinit var requestTracksTask: Future<List<AudioTrack>>
 
+    private val STUB_ALBUM_COVER__IMAGE_URL = "STUB_ALBUM_COVER__IMAGE_URL"
+
     /*
         Добавил кеш на случай, если захочу сохранять презентер при смене конфигурации
         пока не захотел
@@ -60,7 +62,8 @@ class AudioTracksActivityPresenter(private var view: AudioTracksActivityView?) {
                 val artist = cursor.getString(1)
                 val duration = cursor.getInt(2) / 1000
                 val path = cursor.getString(3)
-                audio.add(AudioTrack(title, artist, duration = duration, path = path))
+                val imageURL = STUB_ALBUM_COVER__IMAGE_URL
+                audio.add(AudioTrack(title, artist, duration = duration, path = path, albumCoverURL = imageURL))
             }
             cursor.close()
         }

@@ -13,7 +13,11 @@ import com.lounah.musicplayer.R
 import com.lounah.musicplayer.presentation.model.AudioTrack
 import com.lounah.musicplayer.util.ViewUtilities
 import android.util.TypedValue
+import com.lounah.musicplayer.core.executor.ExecutorSupplier
+import com.lounah.musicplayer.core.memcache.BitmapMemoryCache
 import com.lounah.musicplayer.presentation.model.PlaybackState
+import java.util.concurrent.Callable
+import java.util.concurrent.Future
 
 
 class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSet?, defStyleRes: Int = 0)
@@ -22,24 +26,30 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     constructor(context: Context) : this(context, null, 0)
     constructor(context: Context, attributeSet: AttributeSet?) : this(context, attributeSet, 0)
 
+    private val ALBUM_COVER_BITMAP_CACHE_KEY = "ALBUM_COVER_BITMAP_CACHE_KEY_MINI"
+
     var currentTrack: AudioTrack? = AudioTrack()
         set(newValue) {
             field = newValue
+            ellipsizedTrackTitle = ""
+            ellipsizedTrackBand = ""
             invalidate()
         }
 
     private val DEFAULT_TRACK_TITLE_SIZE = ViewUtilities.spToPx(15f, context)
-    private val DEFAULT_TRACK_BAND_TEXT_SIZE = ViewUtilities.spToPx(15f, context)
-    private val DEFAULT_DURATION_TEXT_SIZE = ViewUtilities.spToPx(15f, context)
-    private val DEFAULT_ALBUM_COVER_SIZE = ViewUtilities.dpToPx(56, context)
+    private val DEFAULT_TRACK_BAND_TEXT_SIZE = ViewUtilities.spToPx(13f, context)
+    private val DEFAULT_DURATION_TEXT_SIZE = ViewUtilities.spToPx(13f, context)
+    private val DEFAULT_ALBUM_COVER_SIZE = ViewUtilities.dpToPx(48, context)
     private val DEFAULT_MARGIN_16_DP = ViewUtilities.dpToPx(16, context)
     private val DEFAULT_PAUSE_LOGO_COLOR = Color.WHITE
 
+    private val bitmapMemoryCache = BitmapMemoryCache.instance
+
     private val playIconDrawable = ContextCompat.getDrawable(context, R.drawable.media_item_ic_play)
 
-    private var albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
+    private lateinit var albumCoverBitmap: Bitmap
 
-    private lateinit var albumCoverRect: Rect
+    private lateinit var albumCoverRect: RectF
     private lateinit var playIconRect: Rect
 
     private val titleTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
@@ -65,10 +75,12 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     private var trackTitleMeasuredWidth = 0f
     private var trackBandMeasuredWidth = 0f
 
-    private lateinit var ellipsizedTrackTitle: CharSequence
-    private lateinit var ellipsizedTrackBand: CharSequence
+    private var ellipsizedTrackTitle: CharSequence = ""
+    private var ellipsizedTrackBand: CharSequence = ""
 
     init {
+
+        initAlbumCover()
 
         titleTextPaint.textSize = DEFAULT_TRACK_TITLE_SIZE.toFloat()
 
@@ -79,12 +91,11 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
         durationTextPaint.color = ContextCompat.getColor(context, R.color.blue)
 
         pauseLogoPaint.color = DEFAULT_PAUSE_LOGO_COLOR
-        pauseLogoPaint.strokeWidth = ViewUtilities.dpToPx(10, context).toFloat()
+        pauseLogoPaint.strokeWidth = ViewUtilities.dpToPx(8, context).toFloat()
 
         val outValue = TypedValue()
         getContext().theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
         setBackgroundResource(outValue.resourceId)
-
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -119,23 +130,23 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
         currentTrack?.let {
 
             // BAND
-            if (::ellipsizedTrackBand.isInitialized && ellipsizedTrackBand.isNotEmpty()) {
+            if (ellipsizedTrackBand != "") {
                 canvas.drawText(ellipsizedTrackBand, 0, ellipsizedTrackBand.length, DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
-                        DEFAULT_MARGIN_16_DP * 4f, bandTextPaint)
+                        height / 2f + DEFAULT_TRACK_TITLE_SIZE, bandTextPaint)
             } else {
                 canvas.drawText(it.band,
                         DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
-                        DEFAULT_MARGIN_16_DP * 4f, bandTextPaint)
+                        height / 2f + DEFAULT_TRACK_TITLE_SIZE, bandTextPaint)
             }
 
             // TITLE
-            if (::ellipsizedTrackTitle.isInitialized && ellipsizedTrackTitle.isNotEmpty()) {
+            if (ellipsizedTrackTitle != "") {
                 canvas.drawText(ellipsizedTrackTitle, 0, ellipsizedTrackTitle.length, DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
-                        DEFAULT_MARGIN_16_DP * 2f, titleTextPaint)
+                        height / 2f - (DEFAULT_TRACK_TITLE_SIZE - DEFAULT_TRACK_BAND_TEXT_SIZE), titleTextPaint)
             } else {
                 canvas.drawText(it.title,
                         DEFAULT_MARGIN_16_DP * 2f + DEFAULT_ALBUM_COVER_SIZE,
-                        DEFAULT_MARGIN_16_DP * 2f, titleTextPaint)
+                        height / 2f - (DEFAULT_TRACK_TITLE_SIZE - DEFAULT_TRACK_BAND_TEXT_SIZE), titleTextPaint)
             }
 
             // DURATION
@@ -144,16 +155,24 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
                     DEFAULT_MARGIN_16_DP * 4f, durationTextPaint)
 
             // ALBUM COVER
-            canvas.save()
-            clipPath.addRoundRect(RectF(albumCoverRect), 12f, 12f, Path.Direction.CW)
-            canvas.clipPath(clipPath)
-            canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumCoverPaint)
-            canvas.restore()
+            if (::albumCoverBitmap.isInitialized) {
+                canvas.save()
+                clipPath.addRoundRect(albumCoverRect, ViewUtilities.dpToPx(6, context).toFloat(), ViewUtilities.dpToPx(6, context).toFloat(), Path.Direction.CW)
+                canvas.clipPath(clipPath)
+                canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumCoverPaint)
+                canvas.restore()
+            }
 
 
             if (currentTrack?.playbackState == PlaybackState.IS_BEING_PLAYED) {
-                canvas.drawLine(DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(18, context).toFloat(), height - DEFAULT_MARGIN_16_DP * 2f,DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(18, context).toFloat(), DEFAULT_MARGIN_16_DP * 2f, pauseLogoPaint)
-                canvas.drawLine(DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(12, context) + ViewUtilities.dpToPx(24, context).toFloat(), height - DEFAULT_MARGIN_16_DP * 2f, DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(12, context) + ViewUtilities.dpToPx(24, context).toFloat(), DEFAULT_MARGIN_16_DP * 2f, pauseLogoPaint)
+                canvas.drawLine(DEFAULT_ALBUM_COVER_SIZE / 2F + DEFAULT_MARGIN_16_DP - ViewUtilities.dpToPx(6, context),
+                        height - DEFAULT_MARGIN_16_DP * 2f,
+                        DEFAULT_ALBUM_COVER_SIZE / 2F + DEFAULT_MARGIN_16_DP - ViewUtilities.dpToPx(6, context),
+                        DEFAULT_MARGIN_16_DP * 2f, pauseLogoPaint)
+                canvas.drawLine(DEFAULT_ALBUM_COVER_SIZE / 2F + DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(6, context),
+                        height - DEFAULT_MARGIN_16_DP * 2f,
+                        DEFAULT_ALBUM_COVER_SIZE / 2F + DEFAULT_MARGIN_16_DP + ViewUtilities.dpToPx(6, context),
+                        DEFAULT_MARGIN_16_DP * 2f, pauseLogoPaint)
             } else if (currentTrack?.playbackState == PlaybackState.IS_PAUSED) {
                 playIconDrawable?.let {
                     it.bounds = playIconRect
@@ -164,10 +183,10 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     }
 
     private fun initRects() {
-        albumCoverRect = Rect(DEFAULT_MARGIN_16_DP,
-                DEFAULT_MARGIN_16_DP,
-                DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE,
-                height - DEFAULT_MARGIN_16_DP)
+        albumCoverRect = RectF(DEFAULT_MARGIN_16_DP.toFloat(),
+                DEFAULT_MARGIN_16_DP.toFloat(),
+                DEFAULT_MARGIN_16_DP.toFloat() + DEFAULT_ALBUM_COVER_SIZE,
+                height - DEFAULT_MARGIN_16_DP.toFloat())
 
         playIconRect = Rect(DEFAULT_MARGIN_16_DP * 2, DEFAULT_MARGIN_16_DP * 2, DEFAULT_ALBUM_COVER_SIZE, height - DEFAULT_MARGIN_16_DP * 2)
     }
@@ -185,9 +204,8 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
             val availableForBandWidth = availableForBandRightBorder - availableForBandLeftBorder
 
-            if (trackBandMeasuredWidth > availableForBandWidth) {
                 ellipsizedTrackBand = TextUtils.ellipsize(currentTrack!!.band, bandTextPaint, availableForBandWidth, TextUtils.TruncateAt.END)
-            }
+
         }
 
         if (trackTitleMeasuredWidth == 0f) {
@@ -198,9 +216,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
             val availableForTitleWidth = availableForTitleRightBorder - availableForTitleLeftBorder
 
-            if (trackTitleMeasuredWidth > availableForTitleWidth) {
-                ellipsizedTrackTitle = TextUtils.ellipsize(currentTrack!!.title, titleTextPaint, availableForTitleWidth.toFloat(), TextUtils.TruncateAt.END)
-            }
+                ellipsizedTrackTitle = TextUtils.ellipsize(currentTrack!!.title, titleTextPaint, availableForTitleWidth, TextUtils.TruncateAt.END)
         }
     }
 
@@ -251,6 +267,23 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
         super.onRestoreInstanceState(state.superState)
     }
+
+    private fun initAlbumCover() {
+        if (bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY) == null) {
+            val bitmapDecodeTask: Future<Bitmap>
+                    = ExecutorSupplier.instance.backgroundThreadExecutor.submit(Callable<Bitmap> { getBitmapFromResources() })
+            try {
+                albumCoverBitmap = bitmapDecodeTask.get()
+                bitmapMemoryCache.putBitmapInCache(ALBUM_COVER_BITMAP_CACHE_KEY, albumCoverBitmap)
+            } catch (e: Exception) {
+
+            }
+        } else {
+            albumCoverBitmap = bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY)!!
+        }
+    }
+
+    private fun getBitmapFromResources() = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx_mini)
 
 
     internal class SavedState : View.BaseSavedState {
