@@ -20,13 +20,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".presentation.filenavigator.FileNavigatorActivity"
-            android:theme="@style/AppTheme"/>
+        <activity
+            android:name=".presentation.filenavigator.FileNavigatorActivity"
+            android:theme="@style/AppTheme" />
         <activity
             android:name=".presentation.audiotracks.AudioTracksActivity"
-            android:hardwareAccelerated="true" />
+            android:hardwareAccelerated="true"
+            android:launchMode="singleTask"/>
 
-        <service android:name=".core.audioplayer.AudioPlayerService" />
+        <service
+            android:name=".core.audioplayer.AudioPlayerService"
+            android:exported="false"
+            android:stopWithTask="true" />
     </application>
 
 </manifest>
