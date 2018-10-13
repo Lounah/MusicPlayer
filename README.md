@@ -46,4 +46,4 @@ PlayerService -- то, с чем взаимодействует наш UI пос
 Все пронизано синглтонами, и я не знаю, насколько это хорошо
 
 # App apk link
-https://yadi.sk/d/HWXN4KkyUI84jg
+https://yadi.sk/d/ewTEePrBJ_GRrQ
