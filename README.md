@@ -19,7 +19,7 @@
   <img src="https://github.com/Lounah/MusicPlayer/blob/master/screenshots/app_tracklist.jpg" width="270" height="480" alt="Screenshot" style="max-width:100%;">
 </a>
 <a href="https://github.com/Lounah/MusicPlayer/blob/master/screenshots/app_tracklist_landscape.jpg" target="_blank">
-  <img src="https://github.com/Lounah/MusicPlayer/blob/master/screenshots/app_tracklist_landscape.jpg" width="270" height="480" alt="Screenshot" style="max-width:100%;">
+  <img src="https://github.com/Lounah/MusicPlayer/blob/master/screenshots/app_tracklist_landscape.jpg" width="480" height="270" alt="Screenshot" style="max-width:100%;">
 </a>
 <a href="https://github.com/Lounah/MusicPlayer/blob/master/screenshots/app_filebrowser.jpg" target="_blank">
   <img src="https://github.com/Lounah/MusicPlayer/blob/master/screenshots/app_filebrowser.jpg" width="270" height="480" alt="Screenshot" style="max-width:100%;">
