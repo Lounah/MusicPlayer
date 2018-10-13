@@ -13,8 +13,11 @@ import com.lounah.musicplayer.R
 import com.lounah.musicplayer.presentation.model.AudioTrack
 import com.lounah.musicplayer.util.ViewUtilities
 import android.util.TypedValue
+import com.lounah.musicplayer.core.executor.ExecutorSupplier
 import com.lounah.musicplayer.core.memcache.BitmapMemoryCache
 import com.lounah.musicplayer.presentation.model.PlaybackState
+import java.util.concurrent.Callable
+import java.util.concurrent.Future
 
 
 class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSet?, defStyleRes: Int = 0)
@@ -23,10 +26,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     constructor(context: Context) : this(context, null, 0)
     constructor(context: Context, attributeSet: AttributeSet?) : this(context, attributeSet, 0)
 
-//    private val STUB_ALBUM_COVER_IMAGE_URL = "https://pp.userapi.com/c850136/v850136172/1e129/PP3-5MonY5s.jpg"
-//
-
-    private val ALBUM_COVER_BITMAP_CACHE_KEY = "ALBUM_COVER_BITMAP_CACHE_KEY"
+    private val ALBUM_COVER_BITMAP_CACHE_KEY = "ALBUM_COVER_BITMAP_CACHE_KEY_MINI"
 
     var currentTrack: AudioTrack? = AudioTrack()
         set(newValue) {
@@ -49,7 +49,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
     private lateinit var albumCoverBitmap: Bitmap
 
-    private lateinit var albumCoverRect: Rect
+    private lateinit var albumCoverRect: RectF
     private lateinit var playIconRect: Rect
 
     private val titleTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
@@ -80,12 +80,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
     init {
 
-        if (bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY) == null) {
-            albumCoverBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx)
-            bitmapMemoryCache.putBitmapInCache(ALBUM_COVER_BITMAP_CACHE_KEY, albumCoverBitmap)
-        } else {
-            albumCoverBitmap = bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY)!!
-        }
+        initAlbumCover()
 
         titleTextPaint.textSize = DEFAULT_TRACK_TITLE_SIZE.toFloat()
 
@@ -162,7 +157,7 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
             // ALBUM COVER
             if (::albumCoverBitmap.isInitialized) {
                 canvas.save()
-                clipPath.addRoundRect(RectF(albumCoverRect), 12f, 12f, Path.Direction.CW)
+                clipPath.addRoundRect(albumCoverRect, ViewUtilities.dpToPx(6, context).toFloat(), ViewUtilities.dpToPx(6, context).toFloat(), Path.Direction.CW)
                 canvas.clipPath(clipPath)
                 canvas.drawBitmap(albumCoverBitmap, null, albumCoverRect, albumCoverPaint)
                 canvas.restore()
@@ -188,10 +183,10 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
     }
 
     private fun initRects() {
-        albumCoverRect = Rect(DEFAULT_MARGIN_16_DP,
-                DEFAULT_MARGIN_16_DP,
-                DEFAULT_MARGIN_16_DP + DEFAULT_ALBUM_COVER_SIZE,
-                height - DEFAULT_MARGIN_16_DP)
+        albumCoverRect = RectF(DEFAULT_MARGIN_16_DP.toFloat(),
+                DEFAULT_MARGIN_16_DP.toFloat(),
+                DEFAULT_MARGIN_16_DP.toFloat() + DEFAULT_ALBUM_COVER_SIZE,
+                height - DEFAULT_MARGIN_16_DP.toFloat())
 
         playIconRect = Rect(DEFAULT_MARGIN_16_DP * 2, DEFAULT_MARGIN_16_DP * 2, DEFAULT_ALBUM_COVER_SIZE, height - DEFAULT_MARGIN_16_DP * 2)
     }
@@ -272,6 +267,23 @@ class AudioTrackItemView constructor(context: Context, attributeSet: AttributeSe
 
         super.onRestoreInstanceState(state.superState)
     }
+
+    private fun initAlbumCover() {
+        if (bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY) == null) {
+            val bitmapDecodeTask: Future<Bitmap>
+                    = ExecutorSupplier.instance.backgroundThreadExecutor.submit(Callable<Bitmap> { getBitmapFromResources() })
+            try {
+                albumCoverBitmap = bitmapDecodeTask.get()
+                bitmapMemoryCache.putBitmapInCache(ALBUM_COVER_BITMAP_CACHE_KEY, albumCoverBitmap)
+            } catch (e: Exception) {
+
+            }
+        } else {
+            albumCoverBitmap = bitmapMemoryCache.getBitmapById(ALBUM_COVER_BITMAP_CACHE_KEY)!!
+        }
+    }
+
+    private fun getBitmapFromResources() = BitmapFactory.decodeResource(context.resources, R.drawable.albumcoverxx_mini)
 
 
     internal class SavedState : View.BaseSavedState {
