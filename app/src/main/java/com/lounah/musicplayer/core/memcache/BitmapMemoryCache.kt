@@ -14,7 +14,7 @@ class BitmapMemoryCache private constructor() {
         val instance: BitmapMemoryCache by lazy { Holder.INSTANCE }
     }
 
-    private val cache = Collections.synchronizedMap(LinkedHashMap<String, Bitmap>(10, 1.5f, true))
+    private val cache = LinkedHashMap<String, Bitmap>(10, 1.5f, true)
     private var allocatedSize: Long = 0L
     private var memLimit = 1_000_000L // 1 Mb
 
@@ -24,7 +24,7 @@ class BitmapMemoryCache private constructor() {
 
     fun getBitmapById(id: String): Bitmap? {
         return try {
-            cache.getOrDefault(id, null)
+            return cache[id]
         } catch (e: NullPointerException) {
             null
         }
