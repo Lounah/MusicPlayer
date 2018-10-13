@@ -38,15 +38,13 @@ class AudioPlayer private constructor(context: Context) {
 
     var currentlyPlayingTrackIndex = -1
 
-    var currentPlaybackTime = 0
-        get() = playbackEngine.currentPeriodIndex
-
     init {
         dataSourceFactory = DefaultDataSourceFactory(context,
                 Util.getUserAgent(context, "MusicPlayer"),
                 bandwidthMeter)
 
         playbackEngine = ExoPlayerFactory.newSimpleInstance(context, trackSelector)
+
     }
 
     fun pause() {
@@ -73,6 +71,9 @@ class AudioPlayer private constructor(context: Context) {
     }
 
     fun playNextInQueue() {
+        if (currentlyPlayingTrackIndex == -1) {
+            currentlyPlayingTrackIndex = 0
+        }
         if (currentlyPlayingTrackIndex < playbackQueue.size - 1) {
             currentlyPlayingTrackIndex++
         } else {
